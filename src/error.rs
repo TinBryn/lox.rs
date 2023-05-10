@@ -17,6 +17,14 @@ impl Display for InterpreterError {
                 .write_fmt(format_args!(
                     "[{row}:{col}] LexicalError: Unexpected {char:?}"
                 )),
+            InterpreterError::LexicalError(LexicalError::UnterminatedString(row, col)) => f
+                .write_fmt(format_args!(
+                    "[{row}:{col}] starts a string that is not terminated"
+                )),
+                InterpreterError::LexicalError(LexicalError::ParseNumberError(row, col)) => f
+                .write_fmt(format_args!(
+                    "[{row}:{col}] is an invalid number"
+                )),
             InterpreterError::HadError => f.write_str("Had and error"),
         }
     }
@@ -28,9 +36,11 @@ impl From<io::Error> for InterpreterError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum LexicalError {
     UnexpectedChar(char, usize, usize),
+    UnterminatedString(usize, usize),
+    ParseNumberError(usize, usize),
 }
 
 impl From<LexicalError> for InterpreterError {
