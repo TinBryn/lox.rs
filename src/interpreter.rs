@@ -45,7 +45,7 @@ impl Lox {
 }
 
 mod scanner;
-
+mod syntax;
 mod tokens;
 
 use std::{io::stdin, path::Path};

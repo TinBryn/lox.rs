@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Keyword {
     // Structure tokens
     LeftParen,
@@ -44,7 +44,7 @@ pub enum Keyword {
     While,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind<'a> {
     Identifier(&'a str),
     String(&'a str),
@@ -52,7 +52,7 @@ pub enum TokenKind<'a> {
     Keyword(Keyword),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token<'a> {
     pub kind: TokenKind<'a>,
     pub row: usize,
