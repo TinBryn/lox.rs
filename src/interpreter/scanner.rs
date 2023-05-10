@@ -356,8 +356,13 @@ mod test {
 fun hello(name) {
     print "hello ";
     print name;
+    var cond = true;
+    if (cond) {
+        print 123 + 456;
+    }
 }
-        "#;
+"#
+        .trim();
         let tokens: Vec<_> = Scanner::new(input).collect::<Result<_, _>>().unwrap();
 
         for token in tokens {
