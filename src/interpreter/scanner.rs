@@ -62,6 +62,7 @@ impl<'a> Scanner<'a> {
                 }
                 '"' => return Some(self.string(row, col)),
                 '0'..='9' => return Some(self.number(row, col)),
+                'a'..='z' | 'A'..='Z' | '_' => return Some(self.identifier(row, col)),
                 _ => return Some(Err(LexicalError::UnexpectedChar(c, row, col))),
             }
         };
@@ -173,6 +174,57 @@ impl<'a> Scanner<'a> {
                 row,
                 col,
             })
+    }
+
+    fn identifier(&mut self, row: usize, col: usize) -> Result<Token<'a>, LexicalError> {
+        while let Some(c) = self.look_ahead() {
+            if !c.is_alphanumeric() {
+                break;
+            }
+            self.advance();
+        }
+
+        let token = self.sub_str();
+        use Keyword::*;
+        let token = match token {
+            "and" => And,
+            "class" => Class,
+            "else" => Else,
+            "false" => False,
+            "fun" => Fun,
+            "for" => For,
+            "if" => If,
+            "nil" => Nil,
+            "or" => Or,
+            "print" => Print,
+            "return" => Return,
+            "super" => Super,
+            "this" => This,
+            "true" => True,
+            "var" => Var,
+            "while" => While,
+            _ => {
+                let token = TokenKind::Identifier(token);
+
+                let token = Token {
+                    kind: token,
+                    row,
+                    col,
+                };
+
+                return Ok(token)
+            }
+        };
+
+        let token = TokenKind::Keyword(token);
+
+        let token = Token {
+            kind: token,
+            row,
+            col,
+        };
+
+        Ok(token)
     }
 }
 
