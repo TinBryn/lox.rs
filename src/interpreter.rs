@@ -60,7 +60,7 @@ mod test {
     fn run_with_unexpected_char() {
         let bad_input = "{}#+-";
         let mut lox = Lox::new();
-        assert!(!lox.had_error, "interpreter should not have error yet");
+        assert!(!lox.had_error, "interpreter should not have an error yet");
 
         lox.run(bad_input).unwrap();
 

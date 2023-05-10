@@ -2,29 +2,40 @@ use crate::error::LexicalError;
 
 use super::tokens::{Keyword, Token, TokenKind};
 
-pub struct Scanner<'a> {
-    source: &'a str,
-    current: usize,
-    start: usize,
+#[derive(Debug, Clone, Copy)]
+struct Pos {
+    index: usize,
     row: usize,
     col: usize,
+}
+
+pub struct Scanner<'a> {
+    source: &'a str,
+    start: Pos,
+    current: Pos,
 }
 
 impl<'a> Scanner<'a> {
     pub fn new(source: &'a str) -> Self {
         Self {
             source,
-            current: 0,
-            start: 0,
-            row: 1,
-            col: 1,
+            start: Pos {
+                index: 0,
+                row: 1,
+                col: 1,
+            },
+            current: Pos {
+                index: 0,
+                row: 1,
+                col: 1,
+            },
         }
     }
 
     fn scan_token(&mut self) -> Option<Result<Token<'a>, LexicalError>> {
         use Keyword::*;
         self.start = self.current;
-        let (mut c, row, col) = self.advance()?;
+        let mut c = self.advance()?;
         let sym = loop {
             match c {
                 '(' => break LeftParen,
@@ -60,60 +71,66 @@ impl<'a> Scanner<'a> {
                 ' ' | '\r' | '\t' | '\n' => {
                     c = self.restart()?;
                 }
-                '"' => return Some(self.string(row, col)),
-                '0'..='9' => return Some(self.number(row, col)),
-                'a'..='z' | 'A'..='Z' | '_' => return Some(self.identifier(row, col)),
-                _ => return Some(Err(LexicalError::UnexpectedChar(c, row, col))),
+                '"' => return Some(self.string()),
+                '0'..='9' => return Some(self.number()),
+                'a'..='z' | 'A'..='Z' | '_' => return Some(self.identifier()),
+                _ => {
+                    return Some(Err(LexicalError::UnexpectedChar(
+                        c,
+                        self.current.row,
+                        self.current.col,
+                    )))
+                }
             }
         };
         Some(Ok(Token {
             kind: TokenKind::Keyword(sym),
-            row,
-            col,
+            row: self.start.row,
+            col: self.start.col,
         }))
     }
 
     fn restart(&mut self) -> Option<char> {
-        self.start = self.current;
-        let mut iter = self.current().chars();
+        let mut iter = self.rest().chars();
         let pre_len = iter.as_str().len();
         let c = iter.next()?;
         let post_len = iter.as_str().len();
 
-        self.current += pre_len - post_len;
+        self.start = self.current;
+        self.current.index += pre_len - post_len;
 
-        self.col += 1;
         if c == '\n' {
-            self.row += 1;
-            self.col = 1;
+            self.current.row += 1;
+            self.current.col = 1;
+        } else {
+            self.current.col += 1;
         }
         Some(c)
     }
 
-    fn current(&self) -> &'a str {
-        &self.source[self.current..]
+    fn rest(&self) -> &'a str {
+        &self.source[self.current.index..]
     }
 
     /// Gets the next character tracking row and col
-    fn advance(&mut self) -> Option<(char, usize, usize)> {
-        let (row, col) = (self.row, self.col);
-        let mut iter = self.current().chars();
+    fn advance(&mut self) -> Option<char> {
+        let mut iter = self.rest().chars();
         let pre_len = iter.as_str().len();
         let c = iter.next()?;
         let post_len = iter.as_str().len();
 
-        self.current += pre_len - post_len;
+        self.current.index += pre_len - post_len;
 
-        self.col += 1;
+        self.current.col += 1;
         if c == '\n' {
-            self.row += 1;
-            self.col = 1;
+            self.current.row += 1;
+            self.current.col = 1;
         }
-        Some((c, row, col))
+        Some(c)
     }
 
     fn matches(&mut self, expected: char) -> bool {
-        if self.current().starts_with(expected) {
+        if self.rest().starts_with(expected) {
             self.advance();
             true
         } else {
@@ -122,38 +139,40 @@ impl<'a> Scanner<'a> {
     }
 
     fn look_ahead(&mut self) -> Option<char> {
-        self.current().chars().next()
+        self.rest().chars().next()
     }
 
     fn look_ahead_nth(&mut self, n: usize) -> Option<char> {
-        self.current().chars().nth(n)
+        self.rest().chars().nth(n)
     }
 
-    fn string(&mut self, row: usize, col: usize) -> Result<Token<'a>, LexicalError> {
-        self.start = self.current;
-        while self
-            .look_ahead()
-            .ok_or(LexicalError::UnterminatedString(row, col))?
-            != '"'
+    fn string(&mut self) -> Result<Token<'a>, LexicalError> {
+        while self.look_ahead().ok_or(LexicalError::UnterminatedString(
+            self.start.row,
+            self.start.col,
+        ))? != '"'
         {
-            let (_, _, _) = self
-                .advance()
-                .ok_or(LexicalError::UnterminatedString(row, col))?;
+            self.advance().ok_or(LexicalError::UnterminatedString(
+                self.start.row,
+                self.start.col,
+            ))?;
         }
-        let s = self.sub_str();
-        let s = TokenKind::String(s);
-        let token = Token { kind: s, row, col };
-
         self.advance();
 
+        let s = self.sub_str();
+        let token = Token {
+            kind: TokenKind::String(&s[1..s.len() - 1]),
+            row: self.start.row,
+            col: self.start.col,
+        };
         Ok(token)
     }
 
     fn sub_str(&mut self) -> &'a str {
-        &self.source[self.start..self.current]
+        &self.source[self.start.index..self.current.index]
     }
 
-    fn number(&mut self, row: usize, col: usize) -> Result<Token<'a>, LexicalError> {
+    fn number(&mut self) -> Result<Token<'a>, LexicalError> {
         while matches!(self.look_ahead(), Some('0'..='9')) {
             self.advance();
         }
@@ -168,15 +187,15 @@ impl<'a> Scanner<'a> {
 
         self.sub_str()
             .parse()
-            .map_err(|_| LexicalError::ParseNumberError(row, col))
+            .map_err(|_| LexicalError::ParseNumberError(self.start.row, self.start.col))
             .map(|n| Token {
                 kind: TokenKind::Number(n),
-                row,
-                col,
+                row: self.start.row,
+                col: self.start.col,
             })
     }
 
-    fn identifier(&mut self, row: usize, col: usize) -> Result<Token<'a>, LexicalError> {
+    fn identifier(&mut self) -> Result<Token<'a>, LexicalError> {
         while let Some(c) = self.look_ahead() {
             if !c.is_alphanumeric() {
                 break;
@@ -208,11 +227,11 @@ impl<'a> Scanner<'a> {
 
                 let token = Token {
                     kind: token,
-                    row,
-                    col,
+                    row: self.start.row,
+                    col: self.start.col,
                 };
 
-                return Ok(token)
+                return Ok(token);
             }
         };
 
@@ -220,8 +239,8 @@ impl<'a> Scanner<'a> {
 
         let token = Token {
             kind: token,
-            row,
-            col,
+            row: self.start.row,
+            col: self.start.col,
         };
 
         Ok(token)
@@ -305,7 +324,7 @@ mod test {
 
         let expected = [
             Ok(String("hello")),
-            Err(LexicalError::UnterminatedString(1, 8)),
+            Err(LexicalError::UnterminatedString(1, 9)),
         ];
 
         assert_eq!(&expected[..], &tokens[..]);
@@ -329,5 +348,20 @@ mod test {
         let expected = [Number(420.69)];
 
         assert_eq!(tokens[..], expected[..])
+    }
+
+    #[test]
+    fn lex_some_complex_code() {
+        let input = r#"
+fun hello(name) {
+    print "hello ";
+    print name;
+}
+        "#;
+        let tokens: Vec<_> = Scanner::new(input).collect::<Result<_, _>>().unwrap();
+
+        for token in tokens {
+            println!("{token:?}")
+        }
     }
 }

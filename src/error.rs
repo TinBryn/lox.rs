@@ -21,10 +21,9 @@ impl Display for InterpreterError {
                 .write_fmt(format_args!(
                     "[{row}:{col}] starts a string that is not terminated"
                 )),
-                InterpreterError::LexicalError(LexicalError::ParseNumberError(row, col)) => f
-                .write_fmt(format_args!(
-                    "[{row}:{col}] is an invalid number"
-                )),
+            InterpreterError::LexicalError(LexicalError::ParseNumberError(row, col)) => {
+                f.write_fmt(format_args!("[{row}:{col}] is an invalid number"))
+            }
             InterpreterError::HadError => f.write_str("Had and error"),
         }
     }
