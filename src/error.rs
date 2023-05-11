@@ -35,7 +35,7 @@ impl From<io::Error> for InterpreterError {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum LexicalError {
     UnexpectedChar(char, usize, usize),
     UnterminatedString(usize, usize),
@@ -43,6 +43,17 @@ pub enum LexicalError {
 }
 
 impl From<LexicalError> for InterpreterError {
+    fn from(value: LexicalError) -> Self {
+        Self::LexicalError(value)
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ParserError {
+    LexicalError(LexicalError)
+}
+
+impl From<LexicalError> for ParserError {
     fn from(value: LexicalError) -> Self {
         Self::LexicalError(value)
     }

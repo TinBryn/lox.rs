@@ -27,19 +27,33 @@ impl Display for Structure {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Operator {
+    /// "-"
     Minus,
+    /// "+"
     Plus,
+    /// "/"
     Slash,
+    /// "*"
     Star,
+    /// "!"
     Bang,
+    /// "!="
     BangEqual,
+    /// "="
     Equal,
+    /// "=="
     EqualEqual,
+    /// ">"
     Greater,
+    /// ">="
     GreaterEqual,
+    /// "<"
     Less,
+    /// "<="
     LessEqual,
+    /// "and"
     And,
+    /// "or"
     Or,
 }
 
