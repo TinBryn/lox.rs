@@ -1,8 +1,7 @@
 use std::fmt::{Display, Write};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum Keyword {
-    // Structure tokens
+pub enum Structure {
     LeftParen,
     RightParen,
     LeftBrace,
@@ -10,14 +9,28 @@ pub enum Keyword {
     Comma,
     Dot,
     SemiColon,
+}
 
-    // Arithmatic
+impl Display for Structure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Structure::LeftParen => f.write_char('('),
+            Structure::RightParen => f.write_char(')'),
+            Structure::LeftBrace => f.write_char('{'),
+            Structure::RightBrace => f.write_char('}'),
+            Structure::Comma => f.write_char(','),
+            Structure::Dot => f.write_char('.'),
+            Structure::SemiColon => f.write_char(';'),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Operator {
     Minus,
     Plus,
     Slash,
     Star,
-
-    // Logical
     Bang,
     BangEqual,
     Equal,
@@ -26,12 +39,33 @@ pub enum Keyword {
     GreaterEqual,
     Less,
     LessEqual,
-
-    // Word operators
     And,
     Or,
+}
 
-    // Keywords
+impl Display for Operator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Operator::Minus => f.write_char('-'),
+            Operator::Plus => f.write_char('+'),
+            Operator::Slash => f.write_char('/'),
+            Operator::Star => f.write_char('*'),
+            Operator::Bang => f.write_char('!'),
+            Operator::BangEqual => f.write_str("!="),
+            Operator::Equal => f.write_char('='),
+            Operator::EqualEqual => f.write_str("=="),
+            Operator::Greater => f.write_char('>'),
+            Operator::GreaterEqual => f.write_str(">="),
+            Operator::Less => f.write_char('<'),
+            Operator::LessEqual => f.write_str("<="),
+            Operator::And => f.write_str("and"),
+            Operator::Or => f.write_str("or"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Keyword {
     Class,
     Else,
     False,
@@ -51,27 +85,6 @@ pub enum Keyword {
 impl Display for Keyword {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Keyword::LeftParen => f.write_char('('),
-            Keyword::RightParen => f.write_char(')'),
-            Keyword::LeftBrace => f.write_char('{'),
-            Keyword::RightBrace => f.write_char('}'),
-            Keyword::Comma => f.write_char(','),
-            Keyword::Dot => f.write_char('.'),
-            Keyword::SemiColon => f.write_char(';'),
-            Keyword::Minus => f.write_char('-'),
-            Keyword::Plus => f.write_char('+'),
-            Keyword::Slash => f.write_char('/'),
-            Keyword::Star => f.write_char('*'),
-            Keyword::Bang => f.write_char('!'),
-            Keyword::BangEqual => f.write_str("!="),
-            Keyword::Equal => f.write_char('='),
-            Keyword::EqualEqual => f.write_str("=="),
-            Keyword::Greater => f.write_char('>'),
-            Keyword::GreaterEqual => f.write_str(">="),
-            Keyword::Less => f.write_char('<'),
-            Keyword::LessEqual => f.write_str("<="),
-            Keyword::And => f.write_str("and"),
-            Keyword::Or => f.write_str("or"),
             Keyword::Class => f.write_str("class"),
             Keyword::Else => f.write_str("else"),
             Keyword::False => f.write_str("false"),
@@ -90,12 +103,29 @@ impl Display for Keyword {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum LangToken {
+    Structure(Structure),
+    Operator(Operator),
+    Keyword(Keyword),
+}
+
+impl Display for LangToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LangToken::Structure(s) => Display::fmt(s, f),
+            LangToken::Operator(op) => Display::fmt(op, f),
+            LangToken::Keyword(kw) => Display::fmt(kw, f),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind<'a> {
     Identifier(&'a str),
     String(&'a str),
     Number(f64),
-    Keyword(Keyword),
+    LangToken(LangToken),
 }
 
 #[derive(Debug, Clone)]

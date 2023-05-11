@@ -1,6 +1,6 @@
 use crate::error::LexicalError;
 
-use super::tokens::{Keyword, Token, TokenKind};
+use super::tokens::{LangToken, Token, TokenKind};
 
 #[derive(Debug, Clone, Copy)]
 struct Pos {
@@ -33,29 +33,49 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_token(&mut self) -> Option<Result<Token<'a>, LexicalError>> {
-        use Keyword::*;
+        use super::tokens::Operator::*;
+        use super::tokens::Structure::*;
+        use LangToken::*;
         self.start = self.current;
         let mut c = self.advance()?;
         let sym = loop {
             match c {
-                '(' => break LeftParen,
-                ')' => break RightParen,
-                '{' => break LeftBrace,
-                '}' => break RightBrace,
-                ',' => break Comma,
-                '.' => break Dot,
-                '-' => break Minus,
-                '+' => break Plus,
-                ';' => break SemiColon,
-                '*' => break Star,
-                '!' => break if self.matches('=') { BangEqual } else { Bang },
-                '=' => break if self.matches('=') { EqualEqual } else { Equal },
-                '<' => break if self.matches('=') { LessEqual } else { Less },
+                '(' => break Structure(LeftParen),
+                ')' => break Structure(RightParen),
+                '{' => break Structure(LeftBrace),
+                '}' => break Structure(RightBrace),
+                ',' => break Structure(Comma),
+                '.' => break Structure(Dot),
+                ';' => break Structure(SemiColon),
+                '-' => break Operator(Minus),
+                '+' => break Operator(Plus),
+                '*' => break Operator(Star),
+                '!' => {
+                    break if self.matches('=') {
+                        Operator(BangEqual)
+                    } else {
+                        Operator(Bang)
+                    }
+                }
+                '=' => {
+                    break if self.matches('=') {
+                        Operator(EqualEqual)
+                    } else {
+                        Operator(Equal)
+                    }
+                }
+                '<' => {
+                    break if self.matches('=') {
+                        Operator(LessEqual)
+                    } else {
+                        Operator(Less)
+                    }
+                }
                 '>' => {
                     break if self.matches('=') {
-                        GreaterEqual
+                        Operator(GreaterEqual)
                     } else {
-                        Greater
+                        Operator(Greater)
                     }
                 }
                 '/' => {
@@ -65,7 +85,7 @@ impl<'a> Scanner<'a> {
                         }
                         c = self.restart()?;
                     } else {
-                        break (Slash);
+                        break Operator(Slash);
                     }
                 }
                 ' ' | '\r' | '\t' | '\n' => {
@@ -84,7 +104,7 @@ impl<'a> Scanner<'a> {
             }
         };
         Some(Ok(Token {
-            kind: TokenKind::Keyword(sym),
+            kind: TokenKind::LangToken(sym),
             row: self.start.row,
             col: self.start.col,
         }))
@@ -204,24 +224,26 @@ impl<'a> Scanner<'a> {
         }
 
         let token = self.sub_str();
-        use Keyword::*;
+        use super::tokens::Keyword::*;
+        use super::tokens::Operator::*;
+        use LangToken::*;
         let token = match token {
-            "and" => And,
-            "class" => Class,
-            "else" => Else,
-            "false" => False,
-            "fun" => Fun,
-            "for" => For,
-            "if" => If,
-            "nil" => Nil,
-            "or" => Or,
-            "print" => Print,
-            "return" => Return,
-            "super" => Super,
-            "this" => This,
-            "true" => True,
-            "var" => Var,
-            "while" => While,
+            "and" => Operator(And),
+            "or" => Operator(Or),
+            "class" => Keyword(Class),
+            "else" => Keyword(Else),
+            "false" => Keyword(False),
+            "fun" => Keyword(Fun),
+            "for" => Keyword(For),
+            "if" => Keyword(If),
+            "nil" => Keyword(Nil),
+            "print" => Keyword(Print),
+            "return" => Keyword(Return),
+            "super" => Keyword(Super),
+            "this" => Keyword(This),
+            "true" => Keyword(True),
+            "var" => Keyword(Var),
+            "while" => Keyword(While),
             _ => {
                 let token = TokenKind::Identifier(token);
 
@@ -235,7 +257,7 @@ impl<'a> Scanner<'a> {
             }
         };
 
-        let token = TokenKind::Keyword(token);
+        let token = TokenKind::LangToken(token);
 
         let token = Token {
             kind: token,
@@ -258,9 +280,9 @@ impl<'a> Iterator for Scanner<'a> {
 mod test {
     use crate::{
         error::LexicalError,
-        interpreter::tokens::{Keyword::*, TokenKind},
+        interpreter::tokens::{LangToken::*, Operator::*, Structure::*, TokenKind},
     };
-    use TokenKind::{Keyword, Number, String};
+    use TokenKind::{LangToken, Number, String};
 
     use super::Scanner;
 
@@ -271,9 +293,18 @@ mod test {
         let tokens: Vec<_> = scanner.map(|token| token.unwrap().kind).collect();
 
         let expected = [
-            LeftBrace, RightBrace, LeftParen, RightParen, Comma, Dot, Minus, Plus, SemiColon, Star,
+            Structure(LeftBrace),
+            Structure(RightBrace),
+            Structure(LeftParen),
+            Structure(RightParen),
+            Structure(Comma),
+            Structure(Dot),
+            Operator(Minus),
+            Operator(Plus),
+            Structure(SemiColon),
+            Operator(Star),
         ]
-        .map(Keyword);
+        .map(LangToken);
 
         assert_eq!(&expected[..], &tokens[..]);
     }
@@ -284,7 +315,9 @@ mod test {
 
         let tokens: Vec<_> = scanner.map(|token| token.unwrap().kind).collect();
 
-        let expected = [EqualEqual, BangEqual, LessEqual, GreaterEqual].map(Keyword);
+        let expected = [EqualEqual, BangEqual, LessEqual, GreaterEqual]
+            .map(Operator)
+            .map(LangToken);
 
         assert_eq!(&expected[..], &tokens[..]);
     }
@@ -300,7 +333,9 @@ mod test {
 
         let tokens: Vec<_> = scanner.map(|token| token.unwrap().kind).collect();
 
-        let expected = [LeftParen, LeftBrace, RightBrace, RightParen].map(Keyword);
+        let expected = [LeftParen, LeftBrace, RightBrace, RightParen]
+            .map(Structure)
+            .map(LangToken);
 
         assert_eq!(&expected[..], &tokens[..]);
     }
