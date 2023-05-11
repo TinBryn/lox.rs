@@ -15,6 +15,7 @@ pub struct Grouping<'a> {
 #[derive(Debug, Clone)]
 pub enum Literal<'a> {
     String(&'a str),
+    Identifier(&'a str),
     Number(f64),
     True,
     False,
@@ -24,7 +25,7 @@ pub enum Literal<'a> {
 #[derive(Debug, Clone)]
 pub struct Unary<'a> {
     operator: Keyword,
-    expresion: Expr<'a>,
+    expression: Expr<'a>,
 }
 
 #[derive(Debug, Clone)]
@@ -33,4 +34,59 @@ pub enum Expr<'a> {
     Grouping(Box<Grouping<'a>>),
     Literal(Literal<'a>),
     Unary(Box<Unary<'a>>),
+}
+
+impl<'a> Expr<'a> {
+    pub fn from_binary(left: Self, operator: Keyword, right: Self) -> Self {
+        Expr::Binary(Box::new(Binary {
+            left,
+            operator,
+            right,
+        }))
+    }
+    pub fn from_grouping(expression: Self) -> Self {
+        Self::Grouping(Box::new(Grouping { expression }))
+    }
+    pub fn from_unary(operator: Keyword, expression: Self) -> Self {
+        Self::Unary(Box::new(Unary {
+            operator,
+            expression,
+        }))
+    }
+    pub fn from_number(n: f64) -> Self {
+        Self::Literal(Literal::Number(n))
+    }
+    pub fn from_string(s: &'a str) -> Self {
+        Self::Literal(Literal::String(s))
+    }
+    pub fn from_ident(id: &'a str) -> Self {
+        Self::Literal(Literal::Identifier(id))
+    }
+    pub fn from_bool(b: bool) -> Self {
+        Self::Literal(if b { Literal::True } else { Literal::False })
+    }
+    pub fn from_nil() -> Self {
+        Self::Literal(Literal::Nil)
+    }
+}
+
+mod visit;
+
+mod printer;
+
+#[cfg(test)]
+mod test {
+    use crate::interpreter::tokens::Keyword;
+
+    use super::{printer::SExpr, Expr};
+
+    #[test]
+    fn debug_expression_tree() {
+        let e1 = Expr::from_unary(Keyword::Minus, Expr::from_number(123.));
+        let e2 = Expr::from_grouping(Expr::from_number(45.67));
+        let expr = Expr::from_binary(e1, Keyword::Star, e2);
+        let s_expr = SExpr::new(&expr);
+
+        println!("{s_expr}");
+    }
 }
