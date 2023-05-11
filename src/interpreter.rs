@@ -44,6 +44,7 @@ impl Lox {
     }
 }
 
+mod parser;
 mod scanner;
 mod syntax;
 mod tokens;
