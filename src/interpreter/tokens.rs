@@ -143,8 +143,13 @@ pub enum TokenKind<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Token<'a> {
-    pub kind: TokenKind<'a>,
+pub struct TokenMeta {
     pub row: usize,
     pub col: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct Token<'a> {
+    pub kind: TokenKind<'a>,
+    pub meta: TokenMeta,
 }

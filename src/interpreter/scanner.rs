@@ -1,4 +1,4 @@
-use crate::error::LexicalError;
+use crate::{error::LexicalError, interpreter::tokens::TokenMeta};
 
 use super::tokens::{LangToken, Token, TokenKind};
 
@@ -105,8 +105,10 @@ impl<'a> Scanner<'a> {
         };
         Some(Ok(Token {
             kind: TokenKind::LangToken(sym),
-            row: self.start.row,
-            col: self.start.col,
+            meta: TokenMeta {
+                row: self.start.row,
+                col: self.start.col,
+            },
         }))
     }
 
@@ -182,8 +184,10 @@ impl<'a> Scanner<'a> {
         let s = self.sub_str();
         let token = Token {
             kind: TokenKind::String(&s[1..s.len() - 1]),
-            row: self.start.row,
-            col: self.start.col,
+            meta: TokenMeta {
+                row: self.start.row,
+                col: self.start.col,
+            },
         };
         Ok(token)
     }
@@ -210,8 +214,10 @@ impl<'a> Scanner<'a> {
             .map_err(|_| LexicalError::ParseNumberError(self.start.row, self.start.col))
             .map(|n| Token {
                 kind: TokenKind::Number(n),
-                row: self.start.row,
-                col: self.start.col,
+                meta: TokenMeta {
+                    row: self.start.row,
+                    col: self.start.col,
+                },
             })
     }
 
@@ -249,8 +255,10 @@ impl<'a> Scanner<'a> {
 
                 let token = Token {
                     kind: token,
-                    row: self.start.row,
-                    col: self.start.col,
+                    meta: TokenMeta {
+                        row: self.start.row,
+                        col: self.start.col,
+                    },
                 };
 
                 return Ok(token);
@@ -261,8 +269,10 @@ impl<'a> Scanner<'a> {
 
         let token = Token {
             kind: token,
-            row: self.start.row,
-            col: self.start.col,
+            meta: TokenMeta {
+                row: self.start.row,
+                col: self.start.col,
+            },
         };
 
         Ok(token)
