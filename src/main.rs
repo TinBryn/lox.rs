@@ -38,4 +38,4 @@ pub enum BasicData {
 }
 
 mod error;
-mod interpreter;
+pub mod interpreter;

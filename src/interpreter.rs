@@ -44,6 +44,12 @@ impl Lox {
     }
 }
 
+impl Default for Lox {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub mod parser;
 pub mod scanner;
 pub mod syntax;
