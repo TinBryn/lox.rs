@@ -45,15 +45,15 @@ impl<'b> Visitor<fmt::Result> for ASTPrinter<'_, 'b> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct SExpr<'a, 'b>(&'b Expr<'a>);
+pub struct ExprAst<'a, 'b>(&'b Expr<'a>);
 
-impl<'a, 'b> SExpr<'a, 'b> {
+impl<'a, 'b> ExprAst<'a, 'b> {
     pub fn new(expr: &'b Expr<'a>) -> Self {
         Self(expr)
     }
 }
 
-impl<'a, 'b> Display for SExpr<'a, 'b> {
+impl<'a, 'b> Display for ExprAst<'a, 'b> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.0.accept(&mut ASTPrinter { f })
     }

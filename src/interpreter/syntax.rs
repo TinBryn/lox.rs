@@ -1,3 +1,5 @@
+use self::printer::ExprAst;
+
 use super::tokens::Operator;
 
 #[derive(Debug, Clone)]
@@ -68,6 +70,10 @@ impl<'a> Expr<'a> {
     pub fn from_nil() -> Self {
         Self::Literal(Literal::Nil)
     }
+
+    pub fn as_ast(&self) -> printer::ExprAst<'a, '_> {
+        ExprAst::new(self)
+    }
 }
 
 mod visit;
@@ -78,14 +84,14 @@ mod printer;
 mod test {
     use crate::interpreter::tokens::Operator;
 
-    use super::{printer::SExpr, Expr};
+    use super::{printer::ExprAst, Expr};
 
     #[test]
     fn debug_expression_tree() {
         let e1 = Expr::from_unary(Operator::Minus, Expr::from_number(123.));
         let e2 = Expr::from_grouping(Expr::from_number(45.67));
         let expr = Expr::from_binary(e1, Operator::Star, e2);
-        let s_expr = SExpr::new(&expr);
+        let s_expr = ExprAst::new(&expr);
 
         let expected = "(* (- 123) (group 45.67))";
 

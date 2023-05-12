@@ -44,10 +44,10 @@ impl Lox {
     }
 }
 
-mod parser;
-mod scanner;
-mod syntax;
-mod tokens;
+pub mod parser;
+pub mod scanner;
+pub mod syntax;
+pub mod tokens;
 
 use std::{io::stdin, path::Path};
 

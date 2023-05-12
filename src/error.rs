@@ -1,5 +1,7 @@
 use std::{fmt::Display, io};
 
+use crate::interpreter::{tokens::{Structure, Operator}};
+
 #[derive(Debug)]
 pub enum InterpreterError {
     TooManyArgs,
@@ -50,7 +52,11 @@ impl From<LexicalError> for InterpreterError {
 
 #[derive(Debug, PartialEq)]
 pub enum ParserError {
-    LexicalError(LexicalError)
+    LexicalError(LexicalError),
+    Unsupported,
+    BadOperator(Option<Operator>),
+    BadStructure(Option<Structure>),
+    EndOfFile,
 }
 
 impl From<LexicalError> for ParserError {

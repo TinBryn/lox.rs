@@ -14,6 +14,8 @@ pub struct Parser<'a> {
     peeked: Option<Option<Result<Token<'a>, LexicalError>>>,
 }
 
+pub type ParseResult<'a> = Result<Expr<'a>, ParserError>;
+
 impl<'a> Parser<'a> {
     pub fn new(input: &'a str) -> Self {
         Self {
@@ -22,11 +24,15 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn expression(&mut self) -> Result<Expr<'a>, ParserError> {
+    pub fn parse(&mut self) -> ParseResult<'a> {
+        self.expression()
+    }
+
+    fn expression(&mut self) -> ParseResult<'a> {
         self.equality()
     }
 
-    fn equality(&mut self) -> Result<Expr<'a>, ParserError> {
+    fn equality(&mut self) -> ParseResult<'a> {
         let mut expr = self.comparison()?;
         while let Some(op) = self.matches(eq_op)? {
             let right = self.comparison()?;
@@ -35,7 +41,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn comparison(&mut self) -> Result<Expr<'a>, ParserError> {
+    fn comparison(&mut self) -> ParseResult<'a> {
         let mut expr = self.term()?;
         while let Some(op) = self.matches(cmp_op)? {
             let right = self.term()?;
@@ -44,7 +50,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn term(&mut self) -> Result<Expr<'a>, ParserError> {
+    fn term(&mut self) -> ParseResult<'a> {
         let mut expr = self.factor()?;
         while let Some(op) = self.matches(term_op)? {
             let right = self.factor()?;
@@ -53,7 +59,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn factor(&mut self) -> Result<Expr<'a>, ParserError> {
+    fn factor(&mut self) -> ParseResult<'a> {
         let mut expr = self.unary()?;
         while let Some(op) = self.matches(factor_op)? {
             let right = self.unary()?;
@@ -62,15 +68,16 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn unary(&mut self) -> Result<Expr<'a>, ParserError> {
+    fn unary(&mut self) -> ParseResult<'a> {
         if let Some(op) = self.matches(unary_op)? {
-            Ok(Expr::from_unary(op, self.unary()?))
+            let expr = self.unary()?;
+            Ok(Expr::from_unary(op, expr))
         } else {
             self.primary()
         }
     }
 
-    fn primary(&mut self) -> Result<Expr<'a>, ParserError> {
+    fn primary(&mut self) -> ParseResult<'a> {
         if let Some(token) = self.peek()? {
             match token.kind {
                 TokenKind::LangToken(LangToken::Keyword(kw)) => match kw {
@@ -86,21 +93,24 @@ impl<'a> Parser<'a> {
                         self.advance()?;
                         Ok(Expr::from_nil())
                     }
-                    kw => todo!("Can't accept `{kw}` yet"),
+                    _kw => Err(ParserError::Unsupported),
                 },
                 TokenKind::LangToken(LangToken::Structure(st)) => match st {
                     Structure::LeftParen => {
                         self.advance()?;
                         let expr = self.expression()?;
-                        self.consume(TokenKind::LangToken(LangToken::Structure(
+                        if !self.consume(TokenKind::LangToken(LangToken::Structure(
                             Structure::RightParen,
-                        )))?;
-                        Ok(Expr::from_grouping(expr))
+                        )))? {
+                            Err(ParserError::BadStructure(None))
+                        } else {
+                            Ok(Expr::from_grouping(expr))
+                        }
                     }
-                    st => todo!("unexpected structure token `{st}`"),
+                    st => Err(ParserError::BadStructure(Some(st))),
                 },
                 TokenKind::LangToken(LangToken::Operator(op)) => {
-                    unreachable!("All operators should have been handled by now, found `{op}`")
+                    Err(ParserError::BadOperator(Some(op)))
                 }
                 TokenKind::Number(n) => {
                     self.advance()?;
@@ -110,10 +120,13 @@ impl<'a> Parser<'a> {
                     self.advance()?;
                     Ok(Expr::from_string(s))
                 }
-                TokenKind::Identifier(id) => todo!("can't accept identifiers yet, found {id:?}."),
+                TokenKind::Identifier(id) => {
+                    self.advance()?;
+                    Ok(Expr::from_ident(id))
+                }
             }
         } else {
-            todo!()
+            Err(ParserError::EndOfFile)
         }
     }
 
@@ -138,22 +151,18 @@ impl<'a> Parser<'a> {
             .map_err(|e| *e)
     }
 
-    fn advance(&mut self) -> Result<Option<Token>, LexicalError> {
+    fn advance(&mut self) -> Result<Option<Token<'a>>, LexicalError> {
         self.peeked
             .take()
             .unwrap_or_else(|| self.tokens.next())
             .transpose()
     }
 
-    fn consume(&mut self, token_kind: TokenKind) -> Result<(), ParserError> {
+    fn consume(&mut self, token_kind: TokenKind) -> Result<bool, ParserError> {
         if let Some(token) = self.advance()? {
-            if token_kind == token.kind {
-                Ok(())
-            } else {
-                todo!("mismatched parens")
-            }
+            Ok(token_kind == token.kind)
         } else {
-            todo!()
+            Err(ParserError::EndOfFile)
         }
     }
 }
@@ -197,5 +206,37 @@ fn unary_op(t: &TokenKind) -> Option<Operator> {
     match t {
         TokenKind::LangToken(LangToken::Operator(t @ (Bang | Minus))) => Some(*t),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Parser;
+
+    #[test]
+    fn parse_number() {
+        let input = "123.456";
+        let expected = "123.456";
+
+        let syntax = Parser::new(input).parse().unwrap();
+        assert_eq!(expected, syntax.as_ast().to_string());
+    }
+
+    #[test]
+    fn parse_nested_expression() {
+        let input = "true == (123 > 42 == -4 + 6 / (4 - 2))";
+        let expected = "(== true (group (== (> 123 42) (+ (- 4) (/ 6 (group (- 4 2)))))))";
+
+        let syntax = Parser::new(input).parse().unwrap();
+        assert_eq!(expected, syntax.as_ast().to_string());
+    }
+
+    #[test]
+    fn parse_double_unary() {
+        let input = "!-123";
+        let expected = "(! (- 123))";
+
+        let syntax = Parser::new(input).parse().unwrap();
+        assert_eq!(expected, syntax.as_ast().to_string());
     }
 }
