@@ -6,7 +6,7 @@ use crate::{
 use super::{
     scanner::Scanner,
     syntax::Expr,
-    tokens::{Token, TokenKind},
+    tokens::{Keyword, Structure, Token, TokenKind},
 };
 
 pub struct Parser<'a> {
@@ -63,7 +63,58 @@ impl<'a> Parser<'a> {
     }
 
     fn unary(&mut self) -> Result<Expr<'a>, ParserError> {
-        todo!()
+        if let Some(op) = self.matches(unary_op)? {
+            Ok(Expr::from_unary(op, self.unary()?))
+        } else {
+            self.primary()
+        }
+    }
+
+    fn primary(&mut self) -> Result<Expr<'a>, ParserError> {
+        if let Some(token) = self.peek()? {
+            match token.kind {
+                TokenKind::LangToken(LangToken::Keyword(kw)) => match kw {
+                    Keyword::True => {
+                        self.advance()?;
+                        Ok(Expr::from_bool(true))
+                    }
+                    Keyword::False => {
+                        self.advance()?;
+                        Ok(Expr::from_bool(false))
+                    }
+                    Keyword::Nil => {
+                        self.advance()?;
+                        Ok(Expr::from_nil())
+                    }
+                    kw => todo!("Can't accept `{kw}` yet"),
+                },
+                TokenKind::LangToken(LangToken::Structure(st)) => match st {
+                    Structure::LeftParen => {
+                        self.advance()?;
+                        let expr = self.expression()?;
+                        self.consume(TokenKind::LangToken(LangToken::Structure(
+                            Structure::RightParen,
+                        )))?;
+                        Ok(Expr::from_grouping(expr))
+                    }
+                    st => todo!("unexpected structure token `{st}`"),
+                },
+                TokenKind::LangToken(LangToken::Operator(op)) => {
+                    unreachable!("All operators should have been handled by now, found `{op}`")
+                }
+                TokenKind::Number(n) => {
+                    self.advance()?;
+                    Ok(Expr::from_number(n))
+                }
+                TokenKind::String(s) => {
+                    self.advance()?;
+                    Ok(Expr::from_string(s))
+                }
+                TokenKind::Identifier(id) => todo!("can't accept identifiers yet, found {id:?}."),
+            }
+        } else {
+            todo!()
+        }
     }
 
     fn matches<T, P: FnOnce(&TokenKind) -> Option<T>>(
@@ -78,7 +129,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn peek(&mut self) -> Result<Option<&Token>, LexicalError> {
+    fn peek(&mut self) -> Result<Option<&Token<'a>>, LexicalError> {
         self.peeked
             .get_or_insert_with(|| self.tokens.next())
             .as_ref()
@@ -92,6 +143,18 @@ impl<'a> Parser<'a> {
             .take()
             .unwrap_or_else(|| self.tokens.next())
             .transpose()
+    }
+
+    fn consume(&mut self, token_kind: TokenKind) -> Result<(), ParserError> {
+        if let Some(token) = self.advance()? {
+            if token_kind == token.kind {
+                Ok(())
+            } else {
+                todo!("mismatched parens")
+            }
+        } else {
+            todo!()
+        }
     }
 }
 
@@ -125,6 +188,14 @@ fn factor_op(t: &TokenKind) -> Option<Operator> {
     use Operator::*;
     match t {
         TokenKind::LangToken(LangToken::Operator(t @ (Slash | Star))) => Some(*t),
+        _ => None,
+    }
+}
+
+fn unary_op(t: &TokenKind) -> Option<Operator> {
+    use Operator::*;
+    match t {
+        TokenKind::LangToken(LangToken::Operator(t @ (Bang | Minus))) => Some(*t),
         _ => None,
     }
 }
