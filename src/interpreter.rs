@@ -1,12 +1,10 @@
-pub struct Lox {
-    had_error: bool,
-}
+pub struct Lox;
 
 impl Lox {
     pub fn new() -> Self {
-        Self { had_error: false }
+        Self
     }
-    pub fn run_prompt(&mut self) -> Result<(), InterpreterError> {
+    pub fn run_prompt() -> Result<(), InterpreterError> {
         loop {
             print!("> ");
             let mut line = Default::default();
@@ -14,33 +12,23 @@ impl Lox {
             if line.is_empty() {
                 return Ok(());
             }
-            self.run(&line)?;
+            Self::run(&line)?;
         }
     }
 
-    pub fn run_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), InterpreterError> {
+    pub fn run_file<P: AsRef<Path>>(path: P) -> Result<(), InterpreterError> {
         let data = std::fs::read_to_string(path)?;
-        self.run(&data)?;
-        if self.had_error {
-            return Err(InterpreterError::HadError);
-        }
+        Self::run(&data)?;
+
         Ok(())
     }
 
-    pub fn run(&mut self, script: &str) -> Result<(), InterpreterError> {
-        let scanner = scanner::Scanner::new(script);
-        for token in scanner {
-            match token {
-                Ok(token) => println!("{token:?}"),
-                Err(err) => self.error(err.into()),
-            }
-        }
-        Ok(())
-    }
+    pub fn run(script: &str) -> Result<(), InterpreterError> {
+        let mut parser = Parser::new(script);
+        let expr = parser.parse()?;
+        println!("{}", expr.as_ast());
 
-    pub fn error(&mut self, err: InterpreterError) {
-        eprintln!("{err}");
-        self.had_error = true;
+        Ok(())
     }
 }
 
@@ -50,27 +38,27 @@ impl Default for Lox {
     }
 }
 
-pub mod parser;
-pub mod scanner;
-pub mod syntax;
+mod parser;
+mod scanner;
+mod syntax;
 pub mod tokens;
 
 use std::{io::stdin, path::Path};
 
 use crate::error::InterpreterError;
 
+use self::parser::Parser;
+
 #[cfg(test)]
 mod test {
+
     use super::Lox;
 
     #[test]
     fn run_with_unexpected_char() {
         let bad_input = "{}#+-";
-        let mut lox = Lox::new();
-        assert!(!lox.had_error, "interpreter should not have an error yet");
-
-        lox.run(bad_input).unwrap();
-
-        assert!(lox.had_error, "interpreter should have had an error");
+        let result = Lox::run(bad_input);
+        println!("{:?}", result);
+        assert!(matches!(result, Err(_)));
     }
 }

@@ -16,12 +16,13 @@
 //!
 //! `fun` declares functions
 
+use interpreter::Lox;
+
 fn main() -> Result<(), error::InterpreterError> {
-    let mut lox = interpreter::Lox::new();
     let args: Vec<_> = std::env::args().collect();
     match &args[..] {
-        [] => lox.run_prompt().map_err(Into::into),
-        [script] => lox.run_file(script).map_err(Into::into),
+        [] => Lox::run_prompt().map_err(Into::into),
+        [script] => Lox::run_file(script).map_err(Into::into),
         _ => {
             eprintln!("Usage: lox [script]");
             Err(error::InterpreterError::TooManyArgs)
@@ -38,4 +39,4 @@ pub enum BasicData {
 }
 
 mod error;
-pub mod interpreter;
+mod interpreter;

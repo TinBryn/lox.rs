@@ -1,13 +1,20 @@
 use std::{fmt::Display, io};
 
-use crate::interpreter::{tokens::{Structure, Operator}};
+use crate::interpreter::tokens::{Operator, Structure};
 
 #[derive(Debug)]
 pub enum InterpreterError {
     TooManyArgs,
     Io(io::Error),
     LexicalError(LexicalError),
-    HadError,
+    ParserError(ParserError),
+}
+
+impl PartialEq for InterpreterError {
+    fn eq(&self, other: &Self) -> bool {
+        use InterpreterError::*;
+        matches!((self, other), (TooManyArgs, TooManyArgs))
+    }
 }
 
 impl Display for InterpreterError {
@@ -26,7 +33,7 @@ impl Display for InterpreterError {
             InterpreterError::LexicalError(LexicalError::ParseNumberError(row, col)) => {
                 f.write_fmt(format_args!("[{row}:{col}] is an invalid number"))
             }
-            InterpreterError::HadError => f.write_str("Had and error"),
+            InterpreterError::ParserError(err) => f.write_fmt(format_args!("{err:?}")),
         }
     }
 }
@@ -62,5 +69,11 @@ pub enum ParserError {
 impl From<LexicalError> for ParserError {
     fn from(value: LexicalError) -> Self {
         Self::LexicalError(value)
+    }
+}
+
+impl From<ParserError> for InterpreterError {
+    fn from(value: ParserError) -> Self {
+        Self::ParserError(value)
     }
 }
