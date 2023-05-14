@@ -19,8 +19,17 @@
 use std::{io::stdin, path::Path};
 
 use interpreter::Interpreter;
+use value::Value;
 
 use crate::{error::InterpreterError, parser::Parser};
+
+mod error;
+mod interpreter;
+mod parser;
+mod scanner;
+mod syntax;
+mod token;
+mod value;
 
 fn main() -> Result<(), error::InterpreterError> {
     let mut lox = Lox::new();
@@ -64,14 +73,14 @@ impl Lox {
         Ok(())
     }
 
-    pub fn run(&mut self, script: &str) -> Result<(), InterpreterError> {
+    pub fn run(&mut self, script: &str) -> Result<Value, InterpreterError> {
         let mut parser = Parser::new(script);
         let expr = parser.parse()?;
         println!("{}", expr.display_lisp());
         let value = self.interpreter.evaluate(&expr)?;
         println!("{:?}", value);
 
-        Ok(())
+        Ok(value)
     }
 }
 
@@ -83,7 +92,6 @@ impl Default for Lox {
 
 #[cfg(test)]
 mod test {
-
     use super::Lox;
 
     #[test]
@@ -96,17 +104,18 @@ mod test {
     }
 
     #[test]
-    fn example_expression() {
+    fn example_numeric_expression() {
         let mut lox = Lox::new();
         let input = "1 + 2 * 3 == 7";
         lox.run(input).unwrap();
     }
-}
 
-mod error;
-mod interpreter;
-mod parser;
-mod scanner;
-mod syntax;
-mod token;
-mod value;
+    #[test]
+    fn example_string_concat() {
+        let mut lox = Lox::new();
+        let input = "\"hello, \" + \"world!\" == \"hello, world!\" ";
+        let value = lox.run(input).unwrap();
+
+        assert_eq!(value, true.into());
+    }
+}
