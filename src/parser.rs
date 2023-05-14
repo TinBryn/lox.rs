@@ -2,7 +2,7 @@ use super::{
     error::{LexicalError, ParserError},
     scanner::Scanner,
     syntax::{BinOp, Expr, UnOp},
-    tokens::{Keyword, Operator, Structure, Token, TokenKind},
+    token::{Keyword, Operator, Structure, Token, TokenKind},
 };
 
 pub struct Parser<'a> {

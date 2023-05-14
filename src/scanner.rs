@@ -1,6 +1,6 @@
 use crate::{
     error::LexicalError,
-    tokens::{Token, TokenKind, TokenMeta},
+    token::{Token, TokenKind, TokenMeta},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -34,8 +34,8 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_token(&mut self) -> Option<Result<Token<'a>, LexicalError>> {
-        use super::tokens::Operator::*;
-        use super::tokens::Structure::*;
+        use super::token::Operator::*;
+        use super::token::Structure::*;
 
         self.start = self.current;
         let mut c = self.advance()?;
@@ -231,8 +231,8 @@ impl<'a> Scanner<'a> {
         }
 
         let token = self.sub_str();
-        use super::tokens::Keyword::*;
-        use super::tokens::Operator::*;
+        use super::token::Keyword::*;
+        use super::token::Operator::*;
 
         let token = match token {
             "and" => TokenKind::Operator(And),
@@ -289,7 +289,7 @@ impl<'a> Iterator for Scanner<'a> {
 mod test {
     use crate::{
         error::LexicalError,
-        tokens::{Operator::*, Structure::*, TokenKind},
+        token::{Operator::*, Structure::*, TokenKind},
     };
     use TokenKind::{Number, String};
     // use TokenKind::LangToken;

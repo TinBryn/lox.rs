@@ -1,7 +1,7 @@
 use std::{fmt::Display, io};
 
-use crate::interpreter::LoxValue;
-use crate::tokens::{Operator, Structure};
+use crate::value::Value;
+use crate::token::{Operator, Structure};
 
 #[derive(Debug)]
 pub enum InterpreterError {
@@ -9,7 +9,7 @@ pub enum InterpreterError {
     Io(io::Error),
     LexicalError(LexicalError),
     ParserError(ParserError),
-    TypeError(LoxValue),
+    TypeError(Value),
 }
 
 impl PartialEq for InterpreterError {
