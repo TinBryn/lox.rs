@@ -1,6 +1,7 @@
 use std::{fmt::Display, io};
 
-use crate::interpreter::tokens::{Operator, Structure};
+use crate::interpreter::LoxValue;
+use crate::tokens::{Operator, Structure};
 
 #[derive(Debug)]
 pub enum InterpreterError {
@@ -8,6 +9,7 @@ pub enum InterpreterError {
     Io(io::Error),
     LexicalError(LexicalError),
     ParserError(ParserError),
+    TypeError(LoxValue),
 }
 
 impl PartialEq for InterpreterError {
@@ -34,6 +36,9 @@ impl Display for InterpreterError {
                 f.write_fmt(format_args!("[{row}:{col}] is an invalid number"))
             }
             InterpreterError::ParserError(err) => f.write_fmt(format_args!("{err:?}")),
+            InterpreterError::TypeError(value) => {
+                f.write_fmt(format_args!("Type error: {value:?}"))
+            }
         }
     }
 }

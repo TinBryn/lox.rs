@@ -40,3 +40,7 @@ pub enum BasicData {
 
 mod error;
 mod interpreter;
+mod tokens;
+mod scanner;
+mod syntax;
+mod parser;

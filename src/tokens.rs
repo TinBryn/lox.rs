@@ -117,29 +117,15 @@ impl Display for Keyword {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum LangToken {
-    Structure(Structure),
-    Operator(Operator),
-    Keyword(Keyword),
-}
-
-impl Display for LangToken {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LangToken::Structure(s) => Display::fmt(s, f),
-            LangToken::Operator(op) => Display::fmt(op, f),
-            LangToken::Keyword(kw) => Display::fmt(kw, f),
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind<'a> {
     Identifier(&'a str),
     String(&'a str),
     Number(f64),
-    LangToken(LangToken),
+    // LangToken(LangToken),
+    Structure(Structure),
+    Operator(Operator),
+    Keyword(Keyword),
 }
 
 #[derive(Debug, Clone)]

@@ -1,12 +1,8 @@
-use crate::{
-    error::{LexicalError, ParserError},
-    interpreter::tokens::{LangToken, Operator},
-};
-
 use super::{
+    error::{LexicalError, ParserError},
     scanner::Scanner,
-    syntax::Expr,
-    tokens::{Keyword, Structure, Token, TokenKind},
+    syntax::{BinOp, Expr, UnOp},
+    tokens::{Keyword, Operator, Structure, Token, TokenKind},
 };
 
 pub struct Parser<'a> {
@@ -80,7 +76,7 @@ impl<'a> Parser<'a> {
     fn primary(&mut self) -> ParseResult<'a> {
         if let Some(token) = self.peek()? {
             match token.kind {
-                TokenKind::LangToken(LangToken::Keyword(kw)) => match kw {
+                TokenKind::Keyword(kw) => match kw {
                     Keyword::True => {
                         self.advance()?;
                         Ok(Expr::from_bool(true))
@@ -95,13 +91,11 @@ impl<'a> Parser<'a> {
                     }
                     _kw => Err(ParserError::Unsupported),
                 },
-                TokenKind::LangToken(LangToken::Structure(st)) => match st {
+                TokenKind::Structure(st) => match st {
                     Structure::LeftParen => {
                         self.advance()?;
                         let expr = self.expression()?;
-                        if !self.consume(TokenKind::LangToken(LangToken::Structure(
-                            Structure::RightParen,
-                        )))? {
+                        if !self.consume(TokenKind::Structure(Structure::RightParen))? {
                             Err(ParserError::BadStructure(None))
                         } else {
                             Ok(Expr::from_grouping(expr))
@@ -109,9 +103,7 @@ impl<'a> Parser<'a> {
                     }
                     st => Err(ParserError::BadStructure(Some(st))),
                 },
-                TokenKind::LangToken(LangToken::Operator(op)) => {
-                    Err(ParserError::BadOperator(Some(op)))
-                }
+                TokenKind::Operator(op) => Err(ParserError::BadOperator(Some(op))),
                 TokenKind::Number(n) => {
                     self.advance()?;
                     Ok(Expr::from_number(n))
@@ -167,44 +159,63 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn eq_op(t: &TokenKind) -> Option<Operator> {
+fn eq_op(t: &TokenKind) -> Option<BinOp> {
     use Operator::*;
     match t {
-        TokenKind::LangToken(LangToken::Operator(t @ (BangEqual | EqualEqual))) => Some(*t),
+        TokenKind::Operator(BangEqual) => Some(BinOp::Ne),
+        TokenKind::Operator(EqualEqual) => Some(BinOp::Eq),
         _ => None,
     }
 }
 
-fn cmp_op(t: &TokenKind) -> Option<Operator> {
+fn cmp_op(t: &TokenKind) -> Option<BinOp> {
+    use Operator::*;
+    if let TokenKind::Operator(op) = t {
+        match op {
+            Greater => Some(BinOp::Gt),
+            GreaterEqual => Some(BinOp::Ge),
+            Less => Some(BinOp::Lt),
+            LessEqual => Some(BinOp::Le),
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
+
+fn term_op(t: &TokenKind) -> Option<BinOp> {
     use Operator::*;
     match t {
-        TokenKind::LangToken(LangToken::Operator(
-            t @ (Greater | GreaterEqual | Less | LessEqual),
-        )) => Some(*t),
+        TokenKind::Operator(op) => match op {
+            Minus => Some(BinOp::Sub),
+            Plus => Some(BinOp::Add),
+            _ => None,
+        },
         _ => None,
     }
 }
 
-fn term_op(t: &TokenKind) -> Option<Operator> {
+fn factor_op(t: &TokenKind) -> Option<BinOp> {
     use Operator::*;
     match t {
-        TokenKind::LangToken(LangToken::Operator(t @ (Minus | Plus))) => Some(*t),
+        TokenKind::Operator(op) => match op {
+            Slash => Some(BinOp::Div),
+            Star => Some(BinOp::Mul),
+            _ => None,
+        },
         _ => None,
     }
 }
 
-fn factor_op(t: &TokenKind) -> Option<Operator> {
+fn unary_op(t: &TokenKind) -> Option<UnOp> {
     use Operator::*;
     match t {
-        TokenKind::LangToken(LangToken::Operator(t @ (Slash | Star))) => Some(*t),
-        _ => None,
-    }
-}
+        TokenKind::Operator(op) => match op {
+            Minus => Some(UnOp::Neg),
+            Bang => Some(UnOp::Not),
+            _ => None,
+        },
 
-fn unary_op(t: &TokenKind) -> Option<Operator> {
-    use Operator::*;
-    match t {
-        TokenKind::LangToken(LangToken::Operator(t @ (Bang | Minus))) => Some(*t),
         _ => None,
     }
 }
@@ -219,7 +230,7 @@ mod test {
         let expected = "123.456";
 
         let syntax = Parser::new(input).parse().unwrap();
-        assert_eq!(expected, syntax.as_ast().to_string());
+        assert_eq!(expected, syntax.display_lisp().to_string());
     }
 
     #[test]
@@ -228,7 +239,7 @@ mod test {
         let expected = "(== true (group (== (> 123 42) (+ (- 4) (/ 6 (group (- 4 2)))))))";
 
         let syntax = Parser::new(input).parse().unwrap();
-        assert_eq!(expected, syntax.as_ast().to_string());
+        assert_eq!(expected, syntax.display_lisp().to_string());
     }
 
     #[test]
@@ -237,6 +248,6 @@ mod test {
         let expected = "(! (- 123))";
 
         let syntax = Parser::new(input).parse().unwrap();
-        assert_eq!(expected, syntax.as_ast().to_string());
+        assert_eq!(expected, syntax.display_lisp().to_string());
     }
 }
