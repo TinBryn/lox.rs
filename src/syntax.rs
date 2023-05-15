@@ -1,7 +1,5 @@
 use std::fmt::{Display, Write};
 
-use self::printer::Lisp;
-
 #[derive(Debug, Clone, Copy)]
 pub enum BinOp {
     Eq,
@@ -14,9 +12,7 @@ pub enum BinOp {
     Sub,
     Mul,
     Div,
-    #[allow(dead_code)]
     And,
-    #[allow(dead_code)]
     Or,
 }
 
@@ -31,14 +27,14 @@ impl Display for BinOp {
         match self {
             BinOp::Eq => f.write_str("=="),
             BinOp::Ne => f.write_str("!="),
-            BinOp::Lt => f.write_str("<"),
-            BinOp::Gt => f.write_str(">"),
+            BinOp::Lt => f.write_char('<'),
+            BinOp::Gt => f.write_char('>'),
             BinOp::Le => f.write_str("<="),
             BinOp::Ge => f.write_str(">="),
-            BinOp::Add => f.write_str("+"),
-            BinOp::Sub => f.write_str("-"),
-            BinOp::Mul => f.write_str("*"),
-            BinOp::Div => f.write_str("/"),
+            BinOp::Add => f.write_char('+'),
+            BinOp::Sub => f.write_char('-'),
+            BinOp::Mul => f.write_char('*'),
+            BinOp::Div => f.write_char('/'),
             BinOp::And => f.write_str("and"),
             BinOp::Or => f.write_str("or"),
         }
@@ -83,6 +79,18 @@ pub struct Unary<'a> {
 }
 
 #[derive(Debug, Clone)]
+pub enum Stmt<'a> {
+    Expr(Expr<'a>),
+    Print(Expr<'a>),
+}
+
+impl<'a> Stmt<'a> {
+    pub fn display_lisp(&self) -> printer::Lisp<'a, '_> {
+        printer::Lisp::new(self)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Expr<'a> {
     Binary(Box<Binary<'a>>),
     Grouping(Box<Grouping<'a>>),
@@ -122,10 +130,6 @@ impl<'a> Expr<'a> {
     pub fn from_nil() -> Self {
         Self::Literal(Literal::Nil)
     }
-
-    pub fn display_lisp(&self) -> printer::Lisp<'a, '_> {
-        Lisp::new(self)
-    }
 }
 
 pub mod visit;
@@ -134,6 +138,8 @@ mod printer;
 
 #[cfg(test)]
 mod test {
+    use crate::syntax::Stmt;
+
     use super::{printer::Lisp, BinOp, Expr, UnOp};
 
     #[test]
@@ -141,7 +147,8 @@ mod test {
         let e1 = Expr::from_unary(UnOp::Neg, Expr::from_number(123.));
         let e2 = Expr::from_grouping(Expr::from_number(45.67));
         let expr = Expr::from_binary(e1, BinOp::Mul, e2);
-        let s_expr = Lisp::new(&expr);
+        let stmt = Stmt::Expr(expr);
+        let s_expr = Lisp::new(&stmt);
 
         let expected = "(* (- 123) (group 45.67))";
 

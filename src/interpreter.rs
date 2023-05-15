@@ -1,6 +1,6 @@
 use crate::{
     error::InterpreterError,
-    syntax::{self, visit::Visitor, BinOp, Expr, Literal, UnOp},
+    syntax::{self, visit::ExprVisitor, BinOp, Expr, Literal, UnOp},
     value::Value,
 };
 
@@ -55,17 +55,18 @@ impl Interpreter {
     }
 }
 
-impl Visitor<Result<Value, InterpreterError>> for Interpreter {
+impl ExprVisitor<Result<Value, InterpreterError>> for Interpreter {
     fn visit_binary(&mut self, binary: &syntax::Binary) -> Result<Value, InterpreterError> {
         let left = self.evaluate(&binary.left)?;
         let right = self.evaluate(&binary.right)?;
         match binary.operator {
-            BinOp::Sub => Self::numeric_op(left, right, |l, r| l - r),
             BinOp::Add => match (left, right) {
                 (Value::Number(left), Value::Number(right)) => Ok((left + right).into()),
                 (Value::String(left), Value::String(right)) => Ok((left + &right).into()),
-                (left, _) => Err(InterpreterError::TypeError(left)),
+                (left, Value::Number(_) | Value::String(_)) => Err(InterpreterError::TypeError(left)),
+                (_, right) => Err(InterpreterError::TypeError(right))
             },
+            BinOp::Sub => Self::numeric_op(left, right, |l, r| l - r),
             BinOp::Div => Self::numeric_op(left, right, |l, r| l / r),
             BinOp::Mul => Self::numeric_op(left, right, |l, r| l * r),
 

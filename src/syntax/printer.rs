@@ -1,12 +1,15 @@
 use std::fmt::{self, Display, Formatter, Write};
 
-use super::{visit::Visitor, Binary, Expr, Grouping, Literal, Unary};
+use super::{
+    visit::{ExprVisitor, StmtVisitor},
+    Binary, Expr, Grouping, Literal, Stmt, Unary,
+};
 
-pub struct ASTPrinter<'a, 'b> {
+pub struct LispAstPrinter<'a, 'b> {
     f: &'a mut Formatter<'b>,
 }
 
-impl<'b> Visitor<fmt::Result> for ASTPrinter<'_, 'b> {
+impl<'b> ExprVisitor<fmt::Result> for LispAstPrinter<'_, 'b> {
     fn visit_binary(&mut self, binary: &Binary) -> fmt::Result {
         self.f.write_char('(')?;
         Display::fmt(&binary.operator, self.f)?;
@@ -44,17 +47,29 @@ impl<'b> Visitor<fmt::Result> for ASTPrinter<'_, 'b> {
     }
 }
 
+impl<'b> StmtVisitor<fmt::Result> for LispAstPrinter<'_, 'b> {
+    fn visit_expr(&mut self, expr: &Expr) -> fmt::Result {
+        expr.accept(self)
+    }
+
+    fn visit_print(&mut self, expr: &Expr) -> fmt::Result {
+        self.f.write_str("(print ")?;
+        expr.accept(self)?;
+        self.f.write_char(')')
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
-pub struct Lisp<'a, 'b>(&'b Expr<'a>);
+pub struct Lisp<'a, 'b>(&'b Stmt<'a>);
 
 impl<'a, 'b> Lisp<'a, 'b> {
-    pub fn new(expr: &'b Expr<'a>) -> Self {
-        Self(expr)
+    pub fn new(stmt: &'b Stmt<'a>) -> Self {
+        Self(stmt)
     }
 }
 
 impl<'a, 'b> Display for Lisp<'a, 'b> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.0.accept(&mut ASTPrinter { f })
+        self.0.accept(&mut LispAstPrinter { f })
     }
 }

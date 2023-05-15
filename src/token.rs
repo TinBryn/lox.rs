@@ -82,16 +82,13 @@ impl Display for Operator {
 pub enum Keyword {
     Class,
     Else,
-    False,
     Fun,
     For,
     If,
-    Nil,
     Print,
     Return,
     Super,
     This,
-    True,
     Var,
     While,
 }
@@ -101,16 +98,13 @@ impl Display for Keyword {
         match self {
             Keyword::Class => f.write_str("class"),
             Keyword::Else => f.write_str("else"),
-            Keyword::False => f.write_str("false"),
             Keyword::Fun => f.write_str("fun"),
             Keyword::For => f.write_str("for"),
             Keyword::If => f.write_str("if"),
-            Keyword::Nil => f.write_str("nil"),
             Keyword::Print => f.write_str("print"),
             Keyword::Return => f.write_str("return"),
             Keyword::Super => f.write_str("super"),
             Keyword::This => f.write_str("this"),
-            Keyword::True => f.write_str("true"),
             Keyword::Var => f.write_str("var"),
             Keyword::While => f.write_str("while"),
         }
@@ -122,10 +116,25 @@ pub enum TokenKind<'a> {
     Identifier(&'a str),
     String(&'a str),
     Number(f64),
-    // LangToken(LangToken),
+    Literal(Literal),
     Structure(Structure),
     Operator(Operator),
     Keyword(Keyword),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Literal {
+    True, False, Nil,
+}
+
+impl Display for Literal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Literal::True => f.write_str("true"),
+            Literal::False => f.write_str("false"),
+            Literal::Nil => f.write_str("nil"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

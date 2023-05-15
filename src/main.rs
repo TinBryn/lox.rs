@@ -21,7 +21,7 @@ use std::{io::stdin, path::Path};
 use interpreter::Interpreter;
 use value::Value;
 
-use crate::{error::InterpreterError, parser::Parser};
+use crate::{error::InterpreterError, parser::Parser, syntax::Stmt};
 
 mod error;
 mod interpreter;
@@ -76,11 +76,16 @@ impl Lox {
     pub fn run(&mut self, script: &str) -> Result<Value, InterpreterError> {
         let mut parser = Parser::new(script);
         let expr = parser.parse()?;
+        let expr = Stmt::Expr(expr);
         println!("{}", expr.display_lisp());
-        let value = self.interpreter.evaluate(&expr)?;
-        println!("{:?}", value);
-
-        Ok(value)
+        match expr {
+            Stmt::Expr(expr) => {
+                let value = self.interpreter.evaluate(&expr)?;
+                println!("{:?}", value);
+                Ok(value)
+            }
+            Stmt::Print(_) => todo!(),
+        }
     }
 }
 

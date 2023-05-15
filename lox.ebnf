@@ -1,6 +1,16 @@
+program = statement*;
+
+statement = expr_statement | print_statement;
+
+print_statement = "print" expression ";";
+
+expr_statement = expression ";";
+
 expression = equality;
 
-equality  = comparison (("!=" | "==") comparison) *;
+logical = equality (("and" | "or") equality )*;
+
+equality  = comparison (("!=" | "==") comparison )*;
 
 comparison = term ( ( ">" | ">=" | "<" | "<=") term )*;
 

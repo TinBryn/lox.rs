@@ -1,8 +1,10 @@
+use crate::token::Literal;
+
 use super::{
     error::{LexicalError, ParserError},
     scanner::Scanner,
     syntax::{BinOp, Expr, UnOp},
-    token::{Keyword, Operator, Structure, Token, TokenKind},
+    token::{Operator, Structure, Token, TokenKind},
 };
 
 pub struct Parser<'a> {
@@ -10,7 +12,7 @@ pub struct Parser<'a> {
     peeked: Option<Option<Result<Token<'a>, LexicalError>>>,
 }
 
-pub type ParseResult<'a> = Result<Expr<'a>, ParserError>;
+pub type ParseResult<T> = Result<T, ParserError>;
 
 impl<'a> Parser<'a> {
     pub fn new(input: &'a str) -> Self {
@@ -20,15 +22,24 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse(&mut self) -> ParseResult<'a> {
+    pub fn parse(&mut self) -> ParseResult<Expr<'a>> {
         self.expression()
     }
 
-    fn expression(&mut self) -> ParseResult<'a> {
-        self.equality()
+    fn expression(&mut self) -> ParseResult<Expr<'a>> {
+        self.logical()
     }
 
-    fn equality(&mut self) -> ParseResult<'a> {
+    fn logical(&mut self) -> ParseResult<Expr<'a>> {
+        let mut expr = self.equality()?;
+        while let Some(op) = self.matches(logical_op)? {
+            let right = self.equality()?;
+            expr = Expr::from_binary(expr, op, right);
+        }
+        Ok(expr)
+    }
+
+    fn equality(&mut self) -> ParseResult<Expr<'a>> {
         let mut expr = self.comparison()?;
         while let Some(op) = self.matches(eq_op)? {
             let right = self.comparison()?;
@@ -37,7 +48,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn comparison(&mut self) -> ParseResult<'a> {
+    fn comparison(&mut self) -> ParseResult<Expr<'a>> {
         let mut expr = self.term()?;
         while let Some(op) = self.matches(cmp_op)? {
             let right = self.term()?;
@@ -46,7 +57,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn term(&mut self) -> ParseResult<'a> {
+    fn term(&mut self) -> ParseResult<Expr<'a>> {
         let mut expr = self.factor()?;
         while let Some(op) = self.matches(term_op)? {
             let right = self.factor()?;
@@ -55,7 +66,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn factor(&mut self) -> ParseResult<'a> {
+    fn factor(&mut self) -> ParseResult<Expr<'a>> {
         let mut expr = self.unary()?;
         while let Some(op) = self.matches(factor_op)? {
             let right = self.unary()?;
@@ -64,7 +75,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn unary(&mut self) -> ParseResult<'a> {
+    fn unary(&mut self) -> ParseResult<Expr<'a>> {
         if let Some(op) = self.matches(unary_op)? {
             let expr = self.unary()?;
             Ok(Expr::from_unary(op, expr))
@@ -73,24 +84,17 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn primary(&mut self) -> ParseResult<'a> {
+    fn primary(&mut self) -> ParseResult<Expr<'a>> {
         if let Some(token) = self.peek()? {
             match token.kind {
-                TokenKind::Keyword(kw) => match kw {
-                    Keyword::True => {
-                        self.advance()?;
-                        Ok(Expr::from_bool(true))
+                TokenKind::Literal(lit) => {
+                    self.advance()?;
+                    match lit {
+                        Literal::True => Ok(Expr::from_bool(true)),
+                        Literal::False => Ok(Expr::from_bool(false)),
+                        Literal::Nil => Ok(Expr::from_nil()),
                     }
-                    Keyword::False => {
-                        self.advance()?;
-                        Ok(Expr::from_bool(false))
-                    }
-                    Keyword::Nil => {
-                        self.advance()?;
-                        Ok(Expr::from_nil())
-                    }
-                    _kw => Err(ParserError::Unsupported),
-                },
+                }
                 TokenKind::Structure(st) => match st {
                     Structure::LeftParen => {
                         self.advance()?;
@@ -116,6 +120,7 @@ impl<'a> Parser<'a> {
                     self.advance()?;
                     Ok(Expr::from_ident(id))
                 }
+                TokenKind::Keyword(_) => Err(ParserError::Unsupported),
             }
         } else {
             Err(ParserError::EndOfFile)
@@ -156,6 +161,15 @@ impl<'a> Parser<'a> {
         } else {
             Err(ParserError::EndOfFile)
         }
+    }
+}
+
+fn logical_op(t: &TokenKind) -> Option<BinOp> {
+    use Operator::*;
+    match t {
+        TokenKind::Operator(And) => Some(BinOp::And),
+        TokenKind::Operator(Or) => Some(BinOp::Or),
+        _ => None,
     }
 }
 
@@ -222,6 +236,8 @@ fn unary_op(t: &TokenKind) -> Option<UnOp> {
 
 #[cfg(test)]
 mod test {
+    use crate::syntax::Stmt;
+
     use super::Parser;
 
     #[test]
@@ -230,6 +246,7 @@ mod test {
         let expected = "123.456";
 
         let syntax = Parser::new(input).parse().unwrap();
+        let syntax = Stmt::Expr(syntax);
         assert_eq!(expected, syntax.display_lisp().to_string());
     }
 
@@ -239,6 +256,7 @@ mod test {
         let expected = "(== true (group (== (> 123 42) (+ (- 4) (/ 6 (group (- 4 2)))))))";
 
         let syntax = Parser::new(input).parse().unwrap();
+        let syntax = Stmt::Expr(syntax);
         assert_eq!(expected, syntax.display_lisp().to_string());
     }
 
@@ -248,6 +266,7 @@ mod test {
         let expected = "(! (- 123))";
 
         let syntax = Parser::new(input).parse().unwrap();
+        let syntax = Stmt::Expr(syntax);
         assert_eq!(expected, syntax.display_lisp().to_string());
     }
 }

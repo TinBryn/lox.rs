@@ -1,6 +1,6 @@
 use crate::{
     error::LexicalError,
-    token::{Token, TokenKind, TokenMeta},
+    token::{Token, TokenKind, TokenMeta, Literal},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -239,16 +239,16 @@ impl<'a> Scanner<'a> {
             "or" => TokenKind::Operator(Or),
             "class" => TokenKind::Keyword(Class),
             "else" => TokenKind::Keyword(Else),
-            "false" => TokenKind::Keyword(False),
+            "false" => TokenKind::Literal(Literal::False),
             "fun" => TokenKind::Keyword(Fun),
             "for" => TokenKind::Keyword(For),
             "if" => TokenKind::Keyword(If),
-            "nil" => TokenKind::Keyword(Nil),
+            "nil" => TokenKind::Literal(Literal::Nil),
             "print" => TokenKind::Keyword(Print),
             "return" => TokenKind::Keyword(Return),
             "super" => TokenKind::Keyword(Super),
             "this" => TokenKind::Keyword(This),
-            "true" => TokenKind::Keyword(True),
+            "true" => TokenKind::Literal(Literal::True),
             "var" => TokenKind::Keyword(Var),
             "while" => TokenKind::Keyword(While),
             _ => {
