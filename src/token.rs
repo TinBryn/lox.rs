@@ -124,7 +124,9 @@ pub enum TokenKind<'a> {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Literal {
-    True, False, Nil,
+    True,
+    False,
+    Nil,
 }
 
 impl Display for Literal {

@@ -82,6 +82,7 @@ pub struct Unary<'a> {
 pub enum Stmt<'a> {
     Expr(Expr<'a>),
     Print(Expr<'a>),
+    Var(&'a str, Expr<'a>),
 }
 
 impl<'a> Stmt<'a> {

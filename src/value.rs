@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     String(String),
@@ -27,5 +29,16 @@ impl From<f64> for Value {
 impl From<bool> for Value {
     fn from(value: bool) -> Self {
         Self::Bool(value)
+    }
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::String(str) => f.write_str(str),
+            Value::Number(n) => f.write_fmt(format_args!("{n}")),
+            Value::Bool(b) => f.write_fmt(format_args!("{b}")),
+            Value::Nil => f.write_str("nil"),
+        }
     }
 }

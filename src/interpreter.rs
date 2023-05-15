@@ -1,6 +1,10 @@
 use crate::{
     error::InterpreterError,
-    syntax::{self, visit::ExprVisitor, BinOp, Expr, Literal, UnOp},
+    syntax::{
+        self,
+        visit::{ExprVisitor, StmtVisitor},
+        BinOp, Expr, Literal, Stmt, UnOp,
+    },
     value::Value,
 };
 
@@ -10,6 +14,17 @@ pub struct Interpreter {}
 impl Interpreter {
     pub fn new() -> Self {
         Default::default()
+    }
+
+    pub fn interpret(&mut self, statements: &[Stmt]) -> Result<(), InterpreterError> {
+        for stmt in statements {
+            self.execute(stmt)?;
+        }
+        Ok(())
+    }
+
+    pub fn execute(&mut self, stmt: &Stmt) -> Result<(), InterpreterError> {
+        stmt.accept(self)
     }
 
     pub fn evaluate(&mut self, expr: &Expr<'_>) -> Result<Value, InterpreterError> {
@@ -55,6 +70,23 @@ impl Interpreter {
     }
 }
 
+impl StmtVisitor<Result<(), InterpreterError>> for Interpreter {
+    fn visit_expr(&mut self, expr: &Expr) -> Result<(), InterpreterError> {
+        self.evaluate(expr)?;
+        Ok(())
+    }
+
+    fn visit_print(&mut self, expr: &Expr) -> Result<(), InterpreterError> {
+        let value = self.evaluate(expr)?;
+        println!("{value}");
+        Ok(())
+    }
+
+    fn visit_var(&mut self, name: &str, expr: &Expr) -> Result<(), InterpreterError> {
+        todo!()
+    }
+}
+
 impl ExprVisitor<Result<Value, InterpreterError>> for Interpreter {
     fn visit_binary(&mut self, binary: &syntax::Binary) -> Result<Value, InterpreterError> {
         let left = self.evaluate(&binary.left)?;
@@ -63,8 +95,10 @@ impl ExprVisitor<Result<Value, InterpreterError>> for Interpreter {
             BinOp::Add => match (left, right) {
                 (Value::Number(left), Value::Number(right)) => Ok((left + right).into()),
                 (Value::String(left), Value::String(right)) => Ok((left + &right).into()),
-                (left, Value::Number(_) | Value::String(_)) => Err(InterpreterError::TypeError(left)),
-                (_, right) => Err(InterpreterError::TypeError(right))
+                (left, Value::Number(_) | Value::String(_)) => {
+                    Err(InterpreterError::TypeError(left))
+                }
+                (_, right) => Err(InterpreterError::TypeError(right)),
             },
             BinOp::Sub => Self::numeric_op(left, right, |l, r| l - r),
             BinOp::Div => Self::numeric_op(left, right, |l, r| l / r),

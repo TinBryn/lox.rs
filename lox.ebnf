@@ -1,12 +1,8 @@
-program = statement*;
+program = (statement ";")*;
 
-statement = expr_statement | print_statement;
+statement = var_decl | expression | "print" expression;
 
-print_statement = "print" expression ";";
-
-expr_statement = expression ";";
-
-expression = equality;
+expression = logical;
 
 logical = equality (("and" | "or") equality )*;
 

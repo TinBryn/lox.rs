@@ -1,6 +1,6 @@
 use crate::{
     error::LexicalError,
-    token::{Token, TokenKind, TokenMeta, Literal},
+    token::{Literal, Token, TokenKind, TokenMeta},
 };
 
 #[derive(Debug, Clone, Copy)]

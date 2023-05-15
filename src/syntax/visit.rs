@@ -1,4 +1,4 @@
-use super::{Binary, Expr, Grouping, Literal, Unary, Stmt};
+use super::{Binary, Expr, Grouping, Literal, Stmt, Unary};
 
 pub trait ExprVisitor<R> {
     fn visit_binary(&mut self, binary: &Binary) -> R;
@@ -10,6 +10,7 @@ pub trait ExprVisitor<R> {
 pub trait StmtVisitor<R> {
     fn visit_expr(&mut self, expr: &Expr) -> R;
     fn visit_print(&mut self, expr: &Expr) -> R;
+    fn visit_var(&mut self, name: &str, expr: &Expr) -> R;
 }
 
 impl<'a> Stmt<'a> {
@@ -17,6 +18,7 @@ impl<'a> Stmt<'a> {
         match self {
             Stmt::Expr(expr) => visitor.visit_expr(expr),
             Stmt::Print(expr) => visitor.visit_print(expr),
+            Stmt::Var(name, expr) => visitor.visit_var(name, expr),
         }
     }
 }

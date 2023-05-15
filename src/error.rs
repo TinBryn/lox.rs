@@ -1,7 +1,7 @@
 use std::{fmt::Display, io};
 
-use crate::value::Value;
 use crate::token::{Operator, Structure};
+use crate::value::Value;
 
 #[derive(Debug)]
 pub enum InterpreterError {
@@ -69,6 +69,7 @@ pub enum ParserError {
     BadOperator(Option<Operator>),
     BadStructure(Option<Structure>),
     EndOfFile,
+    EndOfFileConsume,
 }
 
 impl From<LexicalError> for ParserError {

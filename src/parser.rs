@@ -1,4 +1,7 @@
-use crate::token::Literal;
+use crate::{
+    syntax::Stmt,
+    token::{Keyword, Literal},
+};
 
 use super::{
     error::{LexicalError, ParserError},
@@ -22,8 +25,39 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse(&mut self) -> ParseResult<Expr<'a>> {
-        self.expression()
+    pub fn parse(&mut self) -> ParseResult<Vec<Stmt<'a>>> {
+        let mut statements = Vec::new();
+        while self.peek()?.is_some() {
+            let stmt = self.statement()?;
+            statements.push(stmt);
+        }
+
+        Ok(statements)
+    }
+
+    fn statement(&mut self) -> ParseResult<Stmt<'a>> {
+        let stmt = if self.matches(var_match)?.is_some() {
+            self.var_statement()?
+        } else if self.matches(print_match)?.is_some() {
+            self.print_statement()?
+        } else {
+            self.expression_statement()?
+        };
+        self.consume(TokenKind::Structure(Structure::SemiColon))?;
+        Ok(stmt)
+    }
+
+    fn print_statement(&mut self) -> ParseResult<Stmt<'a>> {
+        self.expression().map(Stmt::Print)
+    }
+
+    fn expression_statement(&mut self) -> ParseResult<Stmt<'a>> {
+        let expr = self.expression()?;
+        Ok(Stmt::Expr(expr))
+    }
+
+    fn var_statement(&mut self) -> ParseResult<Stmt<'a>> {
+        todo!()
     }
 
     fn expression(&mut self) -> ParseResult<Expr<'a>> {
@@ -159,8 +193,24 @@ impl<'a> Parser<'a> {
         if let Some(token) = self.advance()? {
             Ok(token_kind == token.kind)
         } else {
-            Err(ParserError::EndOfFile)
+            Err(ParserError::EndOfFileConsume)
         }
+    }
+}
+
+fn print_match(t: &TokenKind) -> Option<()> {
+    if let TokenKind::Keyword(Keyword::Print) = t {
+        Some(())
+    } else {
+        None
+    }
+}
+
+fn var_match(t: &TokenKind) -> Option<()> {
+    if let TokenKind::Keyword(Keyword::Var) = t {
+        Some(())
+    } else {
+        None
     }
 }
 
@@ -236,37 +286,32 @@ fn unary_op(t: &TokenKind) -> Option<UnOp> {
 
 #[cfg(test)]
 mod test {
-    use crate::syntax::Stmt;
-
     use super::Parser;
 
     #[test]
     fn parse_number() {
-        let input = "123.456";
+        let input = "123.456;";
         let expected = "123.456";
 
         let syntax = Parser::new(input).parse().unwrap();
-        let syntax = Stmt::Expr(syntax);
-        assert_eq!(expected, syntax.display_lisp().to_string());
+        assert_eq!(expected, syntax[0].display_lisp().to_string());
     }
 
     #[test]
     fn parse_nested_expression() {
-        let input = "true == (123 > 42 == -4 + 6 / (4 - 2))";
+        let input = "true == (123 > 42 == -4 + 6 / (4 - 2));";
         let expected = "(== true (group (== (> 123 42) (+ (- 4) (/ 6 (group (- 4 2)))))))";
 
         let syntax = Parser::new(input).parse().unwrap();
-        let syntax = Stmt::Expr(syntax);
-        assert_eq!(expected, syntax.display_lisp().to_string());
+        assert_eq!(expected, syntax[0].display_lisp().to_string());
     }
 
     #[test]
     fn parse_double_unary() {
-        let input = "!-123";
+        let input = "!-123;";
         let expected = "(! (- 123))";
 
         let syntax = Parser::new(input).parse().unwrap();
-        let syntax = Stmt::Expr(syntax);
-        assert_eq!(expected, syntax.display_lisp().to_string());
+        assert_eq!(expected, syntax[0].display_lisp().to_string());
     }
 }

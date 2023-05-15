@@ -57,6 +57,13 @@ impl<'b> StmtVisitor<fmt::Result> for LispAstPrinter<'_, 'b> {
         expr.accept(self)?;
         self.f.write_char(')')
     }
+
+    fn visit_var(&mut self, name: &str, expr: &Expr) -> fmt::Result {
+        self.f.write_str("(var ")?;
+        self.f.write_str(name)?;
+        expr.accept(self)?;
+        self.f.write_char(')')
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
