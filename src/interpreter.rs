@@ -82,6 +82,7 @@ impl StmtVisitor<Result<(), InterpreterError>> for Interpreter {
         Ok(())
     }
 
+    #[allow(unused_variables)]
     fn visit_var(&mut self, name: &str, expr: &Expr) -> Result<(), InterpreterError> {
         todo!()
     }

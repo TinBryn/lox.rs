@@ -82,6 +82,7 @@ pub struct Unary<'a> {
 pub enum Stmt<'a> {
     Expr(Expr<'a>),
     Print(Expr<'a>),
+    #[allow(dead_code)]
     Var(&'a str, Expr<'a>),
 }
 
