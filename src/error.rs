@@ -84,3 +84,9 @@ impl From<ParserError> for InterpreterError {
         Self::ParserError(value)
     }
 }
+
+impl From<&'static str> for ParserError {
+    fn from(value: &'static str) -> Self {
+        Self::Message(value)
+    }
+}

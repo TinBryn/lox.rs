@@ -46,9 +46,9 @@ impl<'a> Parser<'a> {
     }
 
     fn print_statement(&mut self) -> ParseResult<Stmt<'a>> {
-        let peek = self.advance()?.ok_or(ParserError::Message(
-            "print statement with nothing following",
-        ))?;
+        let peek = self
+            .advance()?
+            .ok_or("print statement with nothing following")?;
         self.expression(peek).map(Stmt::Print)
     }
 
@@ -57,28 +57,36 @@ impl<'a> Parser<'a> {
     }
 
     fn expression(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
-        self.logical(peek)
+        self.unary(peek)
+            .and_then(|expr| self.factor(expr))
+            .and_then(|expr| self.term(expr))
+            .and_then(|expr| self.comparison(expr))
+            .and_then(|expr| self.equality(expr))
+            .and_then(|expr| self.logical(expr))
     }
 
-    fn logical(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
-        let mut expr = self.equality(peek)?;
+    fn logical(&mut self, mut expr: Expr<'a>) -> Result<Expr<'a>, ParserError> {
         while let Some(token) = self.peek()? {
             let op = match &token.kind {
                 TokenKind::Operator(Operator::And) => BinOp::And,
                 TokenKind::Operator(Operator::Or) => BinOp::Or,
                 _ => break,
             };
-            let peek = self.advance()?.ok_or(ParserError::Message(
-                "logical operator without right operand",
-            ))?;
-            let right = self.equality(peek)?;
+            let peek = self
+                .advance()?
+                .ok_or("logical operator without right operand")?;
+            let right = self
+                .unary(peek)
+                .and_then(|expr| self.factor(expr))
+                .and_then(|expr| self.term(expr))
+                .and_then(|expr| self.comparison(expr))
+                .and_then(|expr| self.equality(expr))?;
             expr = Expr::from_binary(expr, op, right);
         }
         Ok(expr)
     }
 
-    fn equality(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
-        let mut expr = self.comparison(peek)?;
+    fn equality(&mut self, mut left: Expr<'a>) -> Result<Expr<'a>, ParserError> {
         while let Some(token) = self.peek()? {
             let op = match &token.kind {
                 TokenKind::Operator(Operator::BangEqual) => BinOp::Ne,
@@ -87,81 +95,78 @@ impl<'a> Parser<'a> {
             };
 
             self.advance()?;
-            let peek = self.advance()?.ok_or(ParserError::Message(
-                "equality operator without right operand",
-            ))?;
-            let right = self.comparison(peek)?;
-            expr = Expr::from_binary(expr, op, right);
+            let peek = self
+                .advance()?
+                .ok_or("equality operator without right operand")?;
+
+            let right = self
+                .unary(peek)
+                .and_then(|expr| self.factor(expr))
+                .and_then(|expr| self.term(expr))
+                .and_then(|expr| self.comparison(expr))?;
+            left = Expr::from_binary(left, op, right);
         }
 
-        Ok(expr)
+        Ok(left)
     }
 
-    fn comparison(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
-        let mut expr = self.term(peek)?;
+    fn comparison(&mut self, mut expr: Expr<'a>) -> Result<Expr<'a>, ParserError> {
         while let Some(token) = self.peek()? {
-            let Some(op) = comparison_op(&token.kind) else {
-                break;
+            use Operator::*;
+            let op = match &token.kind {
+                TokenKind::Operator(Greater) => BinOp::Gt,
+                TokenKind::Operator(GreaterEqual) => BinOp::Ge,
+                TokenKind::Operator(Less) => BinOp::Lt,
+                TokenKind::Operator(LessEqual) => BinOp::Le,
+                _ => break,
             };
             self.advance()?;
-            let peek = self.advance()?.ok_or(ParserError::Message(
-                "comparison operator without right operand",
-            ))?;
-            let right = self.term(peek)?;
+            let peek = self
+                .advance()?
+                .ok_or("comparison operator without right operand")?;
+            let right = self
+                .unary(peek)
+                .and_then(|expr| self.factor(expr))
+                .and_then(|expr| self.term(expr))?;
             expr = Expr::from_binary(expr, op, right);
         }
         Ok(expr)
     }
 
-    fn term(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
-        use Operator::*;
-        let mut expr = self.factor(peek)?;
-        loop {
-            if let Some(token) = self.peek()? {
-                expr = match &token.kind {
-                    TokenKind::Operator(Minus) => self.term_right(expr, BinOp::Sub)?,
-                    TokenKind::Operator(Plus) => self.term_right(expr, BinOp::Add)?,
-                    _ => return Ok(expr),
-                }
-            } else {
-                return Ok(expr);
-            }
+    fn term(&mut self, mut expr: Expr<'a>) -> Result<Expr<'a>, ParserError> {
+        while let Some(token) = self.peek()? {
+            use Operator::*;
+            let op = match &token.kind {
+                TokenKind::Operator(Minus) => BinOp::Sub,
+                TokenKind::Operator(Plus) => BinOp::Add,
+                _ => break,
+            };
+            self.advance()?;
+
+            let peek = self
+                .advance()?
+                .ok_or("term operator without right operator")?;
+            let right = self.unary(peek).and_then(|expr| self.factor(expr))?;
+            expr = Expr::from_binary(expr, op, right);
         }
+        Ok(expr)
     }
 
-    fn term_right(&mut self, expr: Expr<'a>, op: BinOp) -> Result<Expr<'a>, ParserError> {
-        self.advance()?;
-        let peek = self
-            .advance()?
-            .ok_or(ParserError::Message("term operator without right operator"))?;
-        let right = self.factor(peek)?;
-        let e = Expr::from_binary(expr, op, right);
-        Ok(e)
-    }
-
-    fn factor(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
+    fn factor(&mut self, mut expr: Expr<'a>) -> Result<Expr<'a>, ParserError> {
         use Operator::*;
-        let mut expr = self.unary(peek)?;
-        loop {
-            if let Some(token) = self.peek()? {
-                expr = match &token.kind {
-                    TokenKind::Operator(Slash) => self.factor_right(expr, BinOp::Div)?,
-                    TokenKind::Operator(Star) => self.factor_right(expr, BinOp::Mul)?,
-                    _ => return Ok(expr),
-                }
-            } else {
-                return Ok(expr);
-            }
+        while let Some(token) = self.peek()? {
+            let op = match &token.kind {
+                TokenKind::Operator(Slash) => BinOp::Div,
+                TokenKind::Operator(Star) => BinOp::Mul,
+                _ => break,
+            };
+            self.advance()?;
+            let peek = self
+                .advance()?
+                .ok_or("factor operator without right operand")?;
+            let right = self.unary(peek)?;
+            expr = Expr::from_binary(expr, op, right);
         }
-    }
-
-    fn factor_right(&mut self, expr: Expr<'a>, op: BinOp) -> Result<Expr<'a>, ParserError> {
-        self.advance()?;
-        let peek = self.advance()?.ok_or(ParserError::Message(
-            "factor operator without right operand",
-        ))?;
-        let right = self.unary(peek)?;
-        let expr = Expr::from_binary(expr, op, right);
         Ok(expr)
     }
 
@@ -171,11 +176,9 @@ impl<'a> Parser<'a> {
             TokenKind::Operator(Operator::Bang) => UnOp::Not,
             _ => return self.primary(peek),
         };
-        let peek = self
-            .advance()?
-            .ok_or(ParserError::Message("unary operator without operand"))?;
+        let peek = self.advance()?.ok_or("unary operator without operand")?;
         let expr = self.unary(peek)?;
-        return Ok(Expr::from_unary(op, expr));
+        Ok(Expr::from_unary(op, expr))
     }
 
     fn primary(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
@@ -187,23 +190,23 @@ impl<'a> Parser<'a> {
             },
             TokenKind::Structure(st) => match st {
                 Structure::LeftParen => {
-                    let peek = self.advance()?.ok_or(ParserError::Message(
-                        "parenthesis without following expression",
-                    ))?;
+                    let peek = self
+                        .advance()?
+                        .ok_or("parenthesis without following expression")?;
                     let expr = self.expression(peek)?;
                     if !self.consume(TokenKind::Structure(Structure::RightParen))? {
-                        Err(ParserError::BadStructure(None))
+                        Err("no terminating parenthesis")?
                     } else {
                         Ok(Expr::from_grouping(expr))
                     }
                 }
                 st => Err(ParserError::BadStructure(Some(st))),
             },
-            TokenKind::Operator(op) => Err(ParserError::BadOperator(Some(op))),
             TokenKind::Number(n) => Ok(Expr::from_number(n)),
             TokenKind::String(s) => Ok(Expr::from_string(s)),
             TokenKind::Identifier(id) => Ok(Expr::from_ident(id)),
-            TokenKind::Keyword(_) => Err(ParserError::Unsupported),
+            TokenKind::Operator(op) => Err(ParserError::BadOperator(Some(op))),
+            TokenKind::Keyword(_) => Err("This keyword is not yet supported")?,
         }
     }
 
@@ -227,21 +230,9 @@ impl<'a> Parser<'a> {
         if let Some(token) = self.advance()? {
             Ok(token_kind == token.kind)
         } else {
-            Err(ParserError::EndOfFileConsume)
+            Err("Tried to consume token, but end of file")?
         }
     }
-}
-
-fn comparison_op(kind: &TokenKind) -> Option<BinOp> {
-    use Operator::*;
-    Some(match kind {
-        TokenKind::Operator(Greater) => BinOp::Gt,
-        TokenKind::Operator(GreaterEqual) => BinOp::Ge,
-        TokenKind::Operator(Less) => BinOp::Lt,
-        TokenKind::Operator(LessEqual) => BinOp::Le,
-
-        _ => return None,
-    })
 }
 
 #[cfg(test)]
