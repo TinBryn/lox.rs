@@ -70,6 +70,7 @@ pub enum ParserError {
     BadStructure(Option<Structure>),
     EndOfFile,
     EndOfFileConsume,
+    Message(&'static str),
 }
 
 impl From<LexicalError> for ParserError {
