@@ -27,111 +27,101 @@ impl<'a> Parser<'a> {
 
     pub fn parse(&mut self) -> ParseResult<Vec<Stmt<'a>>> {
         let mut statements = Vec::new();
-        while self.peek()?.is_some() {
-            let stmt = self.statement()?;
+        while let Some(peek) = self.advance()? {
+            let stmt = self.statement(peek)?;
             statements.push(stmt);
         }
 
         Ok(statements)
     }
 
-    fn statement(&mut self) -> ParseResult<Stmt<'a>> {
-        let stmt = if self.matches(var_match)?.is_some() {
-            self.var_statement()?
-        } else if self.matches(print_match)?.is_some() {
-            self.print_statement()?
-        } else {
-            self.expression_statement(None)?
+    fn statement(&mut self, peek: Token<'a>) -> ParseResult<Stmt<'a>> {
+        let stmt = match &peek.kind {
+            TokenKind::Keyword(Keyword::Var) => self.var_statement()?,
+            TokenKind::Keyword(Keyword::Print) => self.print_statement()?,
+            _ => self.expression_statement(peek)?,
         };
         self.consume(TokenKind::Structure(Structure::SemiColon))?;
         Ok(stmt)
     }
 
     fn print_statement(&mut self) -> ParseResult<Stmt<'a>> {
-        self.expression(None).map(Stmt::Print)
+        let peek = self.advance()?.unwrap();
+        self.expression(peek).map(Stmt::Print)
     }
 
-    fn expression_statement(&mut self, peek: Option<Token<'a>>) -> ParseResult<Stmt<'a>> {
-        match peek {
-            Some(_) => todo!(),
-            None => {
-                let expr = self.expression(None)?;
-                Ok(Stmt::Expr(expr))
-            }
-        }
+    fn expression_statement(&mut self, peek: Token<'a>) -> ParseResult<Stmt<'a>> {
+        let expr = self.expression(peek)?;
+        Ok(Stmt::Expr(expr))
     }
 
     fn var_statement(&mut self) -> ParseResult<Stmt<'a>> {
         todo!()
     }
 
-    fn expression(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
-        match peek {
-            Some(_) => todo!(),
-            None => self.logical(None),
-        }
+    fn expression(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
+        self.logical(peek)
     }
 
-    fn logical(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
-        match peek {
-            Some(_) => todo!(),
-            None => {
-                let mut expr = self.equality(None)?;
-                while let Some(op) = self.matches(logical_op)? {
-                    let right = self.equality(None)?;
-                    expr = Expr::from_binary(expr, op, right);
-                }
-                Ok(expr)
-            }
+    fn logical(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
+        let mut expr = self.equality(peek)?;
+        while let Some(token) = self.peek()? {
+            let op = match &token.kind {
+                TokenKind::Operator(Operator::And) => BinOp::And,
+                TokenKind::Operator(Operator::Or) => BinOp::Or,
+                _ => break,
+            };
+            let peek = self.advance()?.unwrap();
+            let right = self.equality(peek)?;
+            expr = Expr::from_binary(expr, op, right);
         }
+        Ok(expr)
     }
 
-    fn equality(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
-        match peek {
-            Some(_) => todo!(),
-            None => {
-                let mut expr = self.comparison(None)?;
-                while let Some(op) = self.matches(eq_op)? {
-                    let right = self.comparison(None)?;
-                    expr = Expr::from_binary(expr, op, right);
-                }
-                Ok(expr)
-            }
+    fn equality(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
+        let mut expr = self.comparison(peek)?;
+        while let Some(token) = self.peek()? {
+            let op = match &token.kind {
+                TokenKind::Operator(Operator::BangEqual) => BinOp::Ne,
+                TokenKind::Operator(Operator::EqualEqual) => BinOp::Eq,
+                _ => break,
+            };
+
+            self.advance()?;
+            let peek = self.advance()?.unwrap();
+            let right = self.comparison(peek)?;
+            expr = Expr::from_binary(expr, op, right);
         }
+
+        Ok(expr)
     }
 
-    fn comparison(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
-        match peek {
-            Some(_) => todo!(),
-            None => {
-                let mut expr = self.term(None)?;
-                while let Some(op) = self.matches(cmp_op)? {
-                    let right = self.term(None)?;
-                    expr = Expr::from_binary(expr, op, right);
-                }
-                Ok(expr)
-            }
+    fn comparison(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
+        let mut expr = self.term(peek)?;
+        while let Some(token) = self.peek()? {
+            let Some(op) = comparison_op(&token.kind) else {
+                break;
+            };
+            self.advance()?;
+            let peek = self.advance()?.unwrap();
+            let right = self.term(peek)?;
+            expr = Expr::from_binary(expr, op, right);
         }
+        Ok(expr)
     }
 
-    fn term(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
-        match peek {
-            Some(_) => todo!(),
-            None => {
-                let peek = self.advance()?.unwrap();
-                let mut expr = self.factor(peek)?;
-                loop {
-                    if let Some(token) = self.peek()? {
-                        use Operator::*;
-                        expr = match &token.kind {
-                            TokenKind::Operator(Minus) => self.term_right(expr, BinOp::Sub)?,
-                            TokenKind::Operator(Plus) => self.term_right(expr, BinOp::Add)?,
-                            _ => return Ok(expr),
-                        }
-                    } else {
-                        return Ok(expr);
-                    }
+    fn term(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
+        use Operator::*;
+        let mut expr = self.factor(peek)?;
+        loop {
+            if let Some(token) = self.peek()? {
+                expr = match &token.kind {
+                    TokenKind::Operator(Minus) => self.term_right(expr, BinOp::Sub)?,
+                    TokenKind::Operator(Plus) => self.term_right(expr, BinOp::Add)?,
+                    _ => return Ok(expr),
                 }
+            } else {
+                return Ok(expr);
             }
         }
     }
@@ -196,7 +186,8 @@ impl<'a> Parser<'a> {
             },
             TokenKind::Structure(st) => match st {
                 Structure::LeftParen => {
-                    let expr = self.expression(None)?;
+                    let peek = self.advance()?.unwrap();
+                    let expr = self.expression(peek)?;
                     if !self.consume(TokenKind::Structure(Structure::RightParen))? {
                         Err(ParserError::BadStructure(None))
                     } else {
@@ -250,6 +241,18 @@ impl<'a> Parser<'a> {
     }
 }
 
+fn comparison_op(kind: &TokenKind) -> Option<BinOp> {
+    use Operator::*;
+    Some(match kind {
+        TokenKind::Operator(Greater) => BinOp::Gt,
+        TokenKind::Operator(GreaterEqual) => BinOp::Ge,
+        TokenKind::Operator(Less) => BinOp::Lt,
+        TokenKind::Operator(LessEqual) => BinOp::Le,
+
+        _ => return None,
+    })
+}
+
 fn print_match(t: &TokenKind) -> Option<()> {
     if let TokenKind::Keyword(Keyword::Print) = t {
         Some(())
@@ -261,39 +264,6 @@ fn print_match(t: &TokenKind) -> Option<()> {
 fn var_match(t: &TokenKind) -> Option<()> {
     if let TokenKind::Keyword(Keyword::Var) = t {
         Some(())
-    } else {
-        None
-    }
-}
-
-fn logical_op(t: &TokenKind) -> Option<BinOp> {
-    use Operator::*;
-    match t {
-        TokenKind::Operator(And) => Some(BinOp::And),
-        TokenKind::Operator(Or) => Some(BinOp::Or),
-        _ => None,
-    }
-}
-
-fn eq_op(t: &TokenKind) -> Option<BinOp> {
-    use Operator::*;
-    match t {
-        TokenKind::Operator(BangEqual) => Some(BinOp::Ne),
-        TokenKind::Operator(EqualEqual) => Some(BinOp::Eq),
-        _ => None,
-    }
-}
-
-fn cmp_op(t: &TokenKind) -> Option<BinOp> {
-    use Operator::*;
-    if let TokenKind::Operator(op) = t {
-        match op {
-            Greater => Some(BinOp::Gt),
-            GreaterEqual => Some(BinOp::Ge),
-            Less => Some(BinOp::Lt),
-            LessEqual => Some(BinOp::Le),
-            _ => None,
-        }
     } else {
         None
     }
