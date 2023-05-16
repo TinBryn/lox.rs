@@ -118,43 +118,72 @@ impl<'a> Parser<'a> {
         match peek {
             Some(_) => todo!(),
             None => {
-                let mut expr = self.factor(None)?;
-                while let Some(op) = self.matches(term_op)? {
-                    let right = self.factor(None)?;
-                    expr = Expr::from_binary(expr, op, right);
+                let peek = self.advance()?.unwrap();
+                let mut expr = self.factor(peek)?;
+                loop {
+                    if let Some(token) = self.peek()? {
+                        use Operator::*;
+                        expr = match &token.kind {
+                            TokenKind::Operator(Minus) => self.term_right(expr, BinOp::Sub)?,
+                            TokenKind::Operator(Plus) => self.term_right(expr, BinOp::Add)?,
+                            _ => return Ok(expr),
+                        }
+                    } else {
+                        return Ok(expr);
+                    }
                 }
-                Ok(expr)
             }
         }
     }
 
-    fn factor(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
-        match peek {
-            Some(_) => todo!(),
-            None => {
-                let mut expr = self.unary(None)?;
-                while let Some(op) = self.matches(factor_op)? {
-                    let right = self.unary(None)?;
-                    expr = Expr::from_binary(expr, op, right);
+    fn term_right(&mut self, expr: Expr<'a>, op: BinOp) -> Result<Expr<'a>, ParserError> {
+        self.advance()?;
+        let peek = self.advance()?.unwrap();
+        let right = self.factor(peek)?;
+        let e = Expr::from_binary(expr, op, right);
+        Ok(e)
+    }
+
+    fn factor(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
+        use Operator::*;
+        let mut expr = self.unary(peek)?;
+        loop {
+            if let Some(token) = self.peek()? {
+                expr = match &token.kind {
+                    TokenKind::Operator(Slash) => self.factor_right(expr, BinOp::Div)?,
+                    TokenKind::Operator(Star) => self.factor_right(expr, BinOp::Mul)?,
+                    _ => return Ok(expr),
                 }
-                Ok(expr)
+            } else {
+                return Ok(expr);
             }
         }
     }
 
-    fn unary(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
-        match peek {
-            Some(_) => todo!(),
-            None => {
-                if let Some(op) = self.matches(unary_op)? {
-                    let expr = self.unary(None)?;
-                    Ok(Expr::from_unary(op, expr))
-                } else if let Some(peek) = self.advance()? {
-                    self.primary(peek)
-                } else {
-                    Err(ParserError::EndOfFile)
+    fn factor_right(&mut self, expr: Expr<'a>, op: BinOp) -> Result<Expr<'a>, ParserError> {
+        self.advance()?;
+        let peek = self.advance()?.unwrap();
+        let right = self.unary(peek)?;
+        let expr = Expr::from_binary(expr, op, right);
+        Ok(expr)
+    }
+
+    fn unary(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
+        match &peek.kind {
+            TokenKind::Operator(op) => match op {
+                Operator::Minus => {
+                    let peek = self.advance()?.unwrap();
+                    let expr = self.unary(peek)?;
+                    Ok(Expr::from_unary(UnOp::Neg, expr))
                 }
-            }
+                Operator::Bang => {
+                    let peek = self.advance()?.unwrap();
+                    let expr = self.unary(peek)?;
+                    Ok(Expr::from_unary(UnOp::Not, expr))
+                }
+                _ => self.primary(peek),
+            },
+            _ => self.primary(peek),
         }
     }
 
@@ -267,43 +296,6 @@ fn cmp_op(t: &TokenKind) -> Option<BinOp> {
         }
     } else {
         None
-    }
-}
-
-fn term_op(t: &TokenKind) -> Option<BinOp> {
-    use Operator::*;
-    match t {
-        TokenKind::Operator(op) => match op {
-            Minus => Some(BinOp::Sub),
-            Plus => Some(BinOp::Add),
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
-fn factor_op(t: &TokenKind) -> Option<BinOp> {
-    use Operator::*;
-    match t {
-        TokenKind::Operator(op) => match op {
-            Slash => Some(BinOp::Div),
-            Star => Some(BinOp::Mul),
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
-fn unary_op(t: &TokenKind) -> Option<UnOp> {
-    use Operator::*;
-    match t {
-        TokenKind::Operator(op) => match op {
-            Minus => Some(UnOp::Neg),
-            Bang => Some(UnOp::Not),
-            _ => None,
-        },
-
-        _ => None,
     }
 }
 
