@@ -1,6 +1,6 @@
 use crate::{
     syntax::Stmt,
-    token::{Keyword, Literal, TokenMeta},
+    token::{Keyword, Literal},
 };
 
 use super::{
@@ -52,8 +52,13 @@ impl<'a> Parser<'a> {
     }
 
     fn expression_statement(&mut self, peek: Option<Token<'a>>) -> ParseResult<Stmt<'a>> {
-        let expr = self.expression(None)?;
-        Ok(Stmt::Expr(expr))
+        match peek {
+            Some(_) => todo!(),
+            None => {
+                let expr = self.expression(None)?;
+                Ok(Stmt::Expr(expr))
+            }
+        }
     }
 
     fn var_statement(&mut self) -> ParseResult<Stmt<'a>> {
@@ -61,62 +66,95 @@ impl<'a> Parser<'a> {
     }
 
     fn expression(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
-        self.logical(None)
+        match peek {
+            Some(_) => todo!(),
+            None => self.logical(None),
+        }
     }
 
     fn logical(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
-        let mut expr = self.equality(None)?;
-        while let Some(op) = self.matches(logical_op)? {
-            let right = self.equality(None)?;
-            expr = Expr::from_binary(expr, op, right);
+        match peek {
+            Some(_) => todo!(),
+            None => {
+                let mut expr = self.equality(None)?;
+                while let Some(op) = self.matches(logical_op)? {
+                    let right = self.equality(None)?;
+                    expr = Expr::from_binary(expr, op, right);
+                }
+                Ok(expr)
+            }
         }
-        Ok(expr)
     }
 
     fn equality(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
-        let mut expr = self.comparison(None)?;
-        while let Some(op) = self.matches(eq_op)? {
-            let right = self.comparison(None)?;
-            expr = Expr::from_binary(expr, op, right);
+        match peek {
+            Some(_) => todo!(),
+            None => {
+                let mut expr = self.comparison(None)?;
+                while let Some(op) = self.matches(eq_op)? {
+                    let right = self.comparison(None)?;
+                    expr = Expr::from_binary(expr, op, right);
+                }
+                Ok(expr)
+            }
         }
-        Ok(expr)
     }
 
     fn comparison(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
-        let mut expr = self.term(None)?;
-        while let Some(op) = self.matches(cmp_op)? {
-            let right = self.term(None)?;
-            expr = Expr::from_binary(expr, op, right);
+        match peek {
+            Some(_) => todo!(),
+            None => {
+                let mut expr = self.term(None)?;
+                while let Some(op) = self.matches(cmp_op)? {
+                    let right = self.term(None)?;
+                    expr = Expr::from_binary(expr, op, right);
+                }
+                Ok(expr)
+            }
         }
-        Ok(expr)
     }
 
     fn term(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
-        let mut expr = self.factor(None)?;
-        while let Some(op) = self.matches(term_op)? {
-            let right = self.factor(None)?;
-            expr = Expr::from_binary(expr, op, right);
+        match peek {
+            Some(_) => todo!(),
+            None => {
+                let mut expr = self.factor(None)?;
+                while let Some(op) = self.matches(term_op)? {
+                    let right = self.factor(None)?;
+                    expr = Expr::from_binary(expr, op, right);
+                }
+                Ok(expr)
+            }
         }
-        Ok(expr)
     }
 
     fn factor(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
-        let mut expr = self.unary(None)?;
-        while let Some(op) = self.matches(factor_op)? {
-            let right = self.unary(None)?;
-            expr = Expr::from_binary(expr, op, right);
+        match peek {
+            Some(_) => todo!(),
+            None => {
+                let mut expr = self.unary(None)?;
+                while let Some(op) = self.matches(factor_op)? {
+                    let right = self.unary(None)?;
+                    expr = Expr::from_binary(expr, op, right);
+                }
+                Ok(expr)
+            }
         }
-        Ok(expr)
     }
 
     fn unary(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
-        if let Some(op) = self.matches(unary_op)? {
-            let expr = self.unary(None)?;
-            Ok(Expr::from_unary(op, expr))
-        } else if let Some(peek) = self.advance()? {
-            self.primary(peek)
-        } else {
-            Err(ParserError::EndOfFile)
+        match peek {
+            Some(_) => todo!(),
+            None => {
+                if let Some(op) = self.matches(unary_op)? {
+                    let expr = self.unary(None)?;
+                    Ok(Expr::from_unary(op, expr))
+                } else if let Some(peek) = self.advance()? {
+                    self.primary(peek)
+                } else {
+                    Err(ParserError::EndOfFile)
+                }
+            }
         }
     }
 
