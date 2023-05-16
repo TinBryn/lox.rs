@@ -41,18 +41,18 @@ impl<'a> Parser<'a> {
         } else if self.matches(print_match)?.is_some() {
             self.print_statement()?
         } else {
-            self.expression_statement(MALFORMED_TOKEN())?
+            self.expression_statement(None)?
         };
         self.consume(TokenKind::Structure(Structure::SemiColon))?;
         Ok(stmt)
     }
 
     fn print_statement(&mut self) -> ParseResult<Stmt<'a>> {
-        self.expression(MALFORMED_TOKEN()).map(Stmt::Print)
+        self.expression(None).map(Stmt::Print)
     }
 
-    fn expression_statement(&mut self, peek: Token<'a>) -> ParseResult<Stmt<'a>> {
-        let expr = self.expression(MALFORMED_TOKEN())?;
+    fn expression_statement(&mut self, peek: Option<Token<'a>>) -> ParseResult<Stmt<'a>> {
+        let expr = self.expression(None)?;
         Ok(Stmt::Expr(expr))
     }
 
@@ -60,58 +60,58 @@ impl<'a> Parser<'a> {
         todo!()
     }
 
-    fn expression(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
-        self.logical(MALFORMED_TOKEN())
+    fn expression(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
+        self.logical(None)
     }
 
-    fn logical(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
-        let mut expr = self.equality(MALFORMED_TOKEN())?;
+    fn logical(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
+        let mut expr = self.equality(None)?;
         while let Some(op) = self.matches(logical_op)? {
-            let right = self.equality(MALFORMED_TOKEN())?;
+            let right = self.equality(None)?;
             expr = Expr::from_binary(expr, op, right);
         }
         Ok(expr)
     }
 
-    fn equality(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
-        let mut expr = self.comparison(MALFORMED_TOKEN())?;
+    fn equality(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
+        let mut expr = self.comparison(None)?;
         while let Some(op) = self.matches(eq_op)? {
-            let right = self.comparison(MALFORMED_TOKEN())?;
+            let right = self.comparison(None)?;
             expr = Expr::from_binary(expr, op, right);
         }
         Ok(expr)
     }
 
-    fn comparison(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
-        let mut expr = self.term(MALFORMED_TOKEN())?;
+    fn comparison(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
+        let mut expr = self.term(None)?;
         while let Some(op) = self.matches(cmp_op)? {
-            let right = self.term(MALFORMED_TOKEN())?;
+            let right = self.term(None)?;
             expr = Expr::from_binary(expr, op, right);
         }
         Ok(expr)
     }
 
-    fn term(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
-        let mut expr = self.factor(MALFORMED_TOKEN())?;
+    fn term(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
+        let mut expr = self.factor(None)?;
         while let Some(op) = self.matches(term_op)? {
-            let right = self.factor(MALFORMED_TOKEN())?;
+            let right = self.factor(None)?;
             expr = Expr::from_binary(expr, op, right);
         }
         Ok(expr)
     }
 
-    fn factor(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
-        let mut expr = self.unary(MALFORMED_TOKEN())?;
+    fn factor(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
+        let mut expr = self.unary(None)?;
         while let Some(op) = self.matches(factor_op)? {
-            let right = self.unary(MALFORMED_TOKEN())?;
+            let right = self.unary(None)?;
             expr = Expr::from_binary(expr, op, right);
         }
         Ok(expr)
     }
 
-    fn unary(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
+    fn unary(&mut self, peek: Option<Token<'a>>) -> ParseResult<Expr<'a>> {
         if let Some(op) = self.matches(unary_op)? {
-            let expr = self.unary(MALFORMED_TOKEN())?;
+            let expr = self.unary(None)?;
             Ok(Expr::from_unary(op, expr))
         } else if let Some(peek) = self.advance()? {
             self.primary(peek)
@@ -129,7 +129,7 @@ impl<'a> Parser<'a> {
             },
             TokenKind::Structure(st) => match st {
                 Structure::LeftParen => {
-                    let expr = self.expression(MALFORMED_TOKEN())?;
+                    let expr = self.expression(None)?;
                     if !self.consume(TokenKind::Structure(Structure::RightParen))? {
                         Err(ParserError::BadStructure(None))
                     } else {
@@ -180,13 +180,6 @@ impl<'a> Parser<'a> {
         } else {
             Err(ParserError::EndOfFileConsume)
         }
-    }
-}
-
-fn MALFORMED_TOKEN<'a>() -> Token<'a> {
-    Token {
-        kind: TokenKind::Literal(Literal::Nil),
-        meta: TokenMeta { row: 0, col: 0 },
     }
 }
 
