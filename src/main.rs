@@ -20,7 +20,7 @@ use std::{io::stdin, path::Path};
 
 use interpreter::Interpreter;
 
-use crate::{error::InterpreterError, parser::Parser};
+use crate::{error::InterpreterError, parser::LoxParser};
 
 mod error;
 mod interpreter;
@@ -73,7 +73,7 @@ impl Lox {
     }
 
     pub fn run(&mut self, script: &str) -> Result<(), InterpreterError> {
-        let mut parser = Parser::new(script);
+        let mut parser = LoxParser::new(script);
         let statements = parser.parse()?;
         for stmt in &statements {
             println!("{}", stmt.display_lisp());

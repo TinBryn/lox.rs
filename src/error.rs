@@ -8,7 +8,7 @@ pub enum InterpreterError {
     TooManyArgs,
     Io(io::Error),
     LexicalError(LexicalError),
-    ParserError(ParserError),
+    ParserError(LoxParserError),
     TypeError(Value),
 }
 
@@ -63,7 +63,7 @@ impl From<LexicalError> for InterpreterError {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum ParserError {
+pub enum LoxParserError {
     LexicalError(LexicalError),
     Unsupported,
     BadOperator(Option<Operator>),
@@ -73,19 +73,19 @@ pub enum ParserError {
     Message(&'static str),
 }
 
-impl From<LexicalError> for ParserError {
+impl From<LexicalError> for LoxParserError {
     fn from(value: LexicalError) -> Self {
         Self::LexicalError(value)
     }
 }
 
-impl From<ParserError> for InterpreterError {
-    fn from(value: ParserError) -> Self {
+impl From<LoxParserError> for InterpreterError {
+    fn from(value: LoxParserError) -> Self {
         Self::ParserError(value)
     }
 }
 
-impl From<&'static str> for ParserError {
+impl From<&'static str> for LoxParserError {
     fn from(value: &'static str) -> Self {
         Self::Message(value)
     }
