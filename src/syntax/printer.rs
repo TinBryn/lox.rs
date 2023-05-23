@@ -67,15 +67,15 @@ impl<'b> StmtVisitor<fmt::Result> for LispAstPrinter<'_, 'b> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct Lisp<'a, 'b>(&'b Stmt<'a>);
+pub struct Lisp<'b>(&'b Stmt);
 
-impl<'a, 'b> Lisp<'a, 'b> {
-    pub fn new(stmt: &'b Stmt<'a>) -> Self {
+impl<'b> Lisp<'b> {
+    pub fn new(stmt: &'b Stmt) -> Self {
         Self(stmt)
     }
 }
 
-impl<'a, 'b> Display for Lisp<'a, 'b> {
+impl<'b> Display for Lisp<'b> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.0.accept(&mut LispAstPrinter { f })
     }

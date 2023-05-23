@@ -27,7 +27,7 @@ impl Interpreter {
         stmt.accept(self)
     }
 
-    pub fn evaluate(&mut self, expr: &Expr<'_>) -> Result<Value, InterpreterError> {
+    pub fn evaluate(&mut self, expr: &Expr) -> Result<Value, InterpreterError> {
         expr.accept(self)
     }
 
@@ -130,7 +130,7 @@ impl ExprVisitor<Result<Value, InterpreterError>> for Interpreter {
 
     fn visit_literal(&mut self, lit: &Literal) -> Result<Value, InterpreterError> {
         match *lit {
-            Literal::String(s) => Ok(Value::String(s.into())),
+            Literal::String(ref s) => Ok(Value::String(s.clone())),
             Literal::Number(n) => Ok(Value::Number(n)),
             Literal::True => Ok(Value::Bool(true)),
             Literal::False => Ok(Value::Bool(false)),

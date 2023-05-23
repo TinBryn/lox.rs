@@ -33,7 +33,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn scan_token(&mut self) -> Option<Result<Token<'a>, LexicalError>> {
+    fn scan_token(&mut self) -> Option<Result<Token, LexicalError>> {
         use super::token::Operator::*;
         use super::token::Structure::*;
 
@@ -169,7 +169,7 @@ impl<'a> Scanner<'a> {
         self.rest().chars().nth(n)
     }
 
-    fn string(&mut self) -> Result<Token<'a>, LexicalError> {
+    fn string(&mut self) -> Result<Token, LexicalError> {
         while self.look_ahead().ok_or(LexicalError::UnterminatedString(
             self.start.row,
             self.start.col,
@@ -184,7 +184,7 @@ impl<'a> Scanner<'a> {
 
         let s = self.sub_str();
         let token = Token {
-            kind: TokenKind::String(&s[1..s.len() - 1]),
+            kind: TokenKind::String((&s[1..s.len() - 1]).into()),
             meta: TokenMeta {
                 row: self.start.row,
                 col: self.start.col,
@@ -197,7 +197,7 @@ impl<'a> Scanner<'a> {
         &self.source[self.start.index..self.current.index]
     }
 
-    fn number(&mut self) -> Result<Token<'a>, LexicalError> {
+    fn number(&mut self) -> Result<Token, LexicalError> {
         while matches!(self.look_ahead(), Some('0'..='9')) {
             self.advance();
         }
@@ -222,7 +222,7 @@ impl<'a> Scanner<'a> {
             })
     }
 
-    fn identifier(&mut self) -> Result<Token<'a>, LexicalError> {
+    fn identifier(&mut self) -> Result<Token, LexicalError> {
         while let Some(c) = self.look_ahead() {
             if !c.is_alphanumeric() {
                 break;
@@ -252,7 +252,7 @@ impl<'a> Scanner<'a> {
             "var" => TokenKind::Keyword(Var),
             "while" => TokenKind::Keyword(While),
             _ => {
-                let token = TokenKind::Identifier(token);
+                let token = TokenKind::Identifier(token.into());
 
                 let token = Token {
                     kind: token,
@@ -279,7 +279,7 @@ impl<'a> Scanner<'a> {
 }
 
 impl<'a> Iterator for Scanner<'a> {
-    type Item = Result<Token<'a>, LexicalError>;
+    type Item = Result<Token, LexicalError>;
     fn next(&mut self) -> Option<Self::Item> {
         self.scan_token()
     }
@@ -351,7 +351,7 @@ mod test {
 
         let tokens: Vec<_> = scanner.map(|token| token.unwrap().kind).collect();
 
-        let expected = ["hello", "world"].map(String);
+        let expected = ["hello", "world"].map(|s| String(s.into()));
 
         assert_eq!(&expected[..], &tokens[..]);
     }
@@ -363,7 +363,7 @@ mod test {
         let tokens: Vec<_> = scanner.map(|r| r.map(|t| t.kind)).collect();
 
         let expected = [
-            Ok(String("hello")),
+            Ok(String("hello".into())),
             Err(LexicalError::UnterminatedString(1, 9)),
         ];
 

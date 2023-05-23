@@ -51,21 +51,21 @@ impl Display for UnOp {
 }
 
 #[derive(Debug, Clone)]
-pub struct Binary<'a> {
-    pub left: Expr<'a>,
+pub struct Binary {
+    pub left: Expr,
     pub operator: BinOp,
-    pub right: Expr<'a>,
+    pub right: Expr,
 }
 
 #[derive(Debug, Clone)]
-pub struct Grouping<'a> {
-    pub expression: Expr<'a>,
+pub struct Grouping {
+    pub expression: Expr,
 }
 
 #[derive(Debug, Clone)]
-pub enum Literal<'a> {
-    String(&'a str),
-    Identifier(&'a str),
+pub enum Literal {
+    String(String),
+    Identifier(String),
     Number(f64),
     True,
     False,
@@ -73,34 +73,34 @@ pub enum Literal<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Unary<'a> {
+pub struct Unary {
     pub operator: UnOp,
-    pub expression: Expr<'a>,
+    pub expression: Expr,
 }
 
 #[derive(Debug, Clone)]
-pub enum Stmt<'a> {
-    Expr(Expr<'a>),
-    Print(Expr<'a>),
+pub enum Stmt {
+    Expr(Expr),
+    Print(Expr),
     #[allow(dead_code)]
-    Var(&'a str, Expr<'a>),
+    Var(&'static str, Expr),
 }
 
-impl<'a> Stmt<'a> {
-    pub fn display_lisp(&self) -> printer::Lisp<'a, '_> {
+impl Stmt {
+    pub fn display_lisp(&self) -> printer::Lisp<'_> {
         printer::Lisp::new(self)
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum Expr<'a> {
-    Binary(Box<Binary<'a>>),
-    Grouping(Box<Grouping<'a>>),
-    Literal(Literal<'a>),
-    Unary(Box<Unary<'a>>),
+pub enum Expr {
+    Binary(Box<Binary>),
+    Grouping(Box<Grouping>),
+    Literal(Literal),
+    Unary(Box<Unary>),
 }
 
-impl<'a> Expr<'a> {
+impl Expr {
     pub fn from_binary(left: Self, operator: BinOp, right: Self) -> Self {
         Expr::Binary(Box::new(Binary {
             left,
@@ -120,10 +120,10 @@ impl<'a> Expr<'a> {
     pub fn from_number(n: f64) -> Self {
         Self::Literal(Literal::Number(n))
     }
-    pub fn from_string(s: &'a str) -> Self {
+    pub fn from_string(s: String) -> Self {
         Self::Literal(Literal::String(s))
     }
-    pub fn from_ident(id: &'a str) -> Self {
+    pub fn from_ident(id: String) -> Self {
         Self::Literal(Literal::Identifier(id))
     }
     pub fn from_bool(b: bool) -> Self {

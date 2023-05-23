@@ -12,7 +12,7 @@ use super::{
 
 pub struct Parser<'a> {
     tokens: Scanner<'a>,
-    peeked: Option<Option<Result<Token<'a>, LexicalError>>>,
+    peeked: Option<Option<Result<Token, LexicalError>>>,
 }
 
 pub type ParseResult<T> = Result<T, ParserError>;
@@ -25,7 +25,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse(&mut self) -> ParseResult<Vec<Stmt<'a>>> {
+    pub fn parse(&mut self) -> ParseResult<Vec<Stmt>> {
         let mut statements = Vec::new();
         while let Some(peek) = self.advance()? {
             let stmt = self.statement(peek)?;
@@ -35,7 +35,7 @@ impl<'a> Parser<'a> {
         Ok(statements)
     }
 
-    fn statement(&mut self, peek: Token<'a>) -> ParseResult<Stmt<'a>> {
+    fn statement(&mut self, peek: Token) -> ParseResult<Stmt> {
         let stmt = match &peek.kind {
             TokenKind::Keyword(Keyword::Var) => self.var_statement()?,
             TokenKind::Keyword(Keyword::Print) => self.print_statement()?,
@@ -45,18 +45,18 @@ impl<'a> Parser<'a> {
         Ok(stmt)
     }
 
-    fn print_statement(&mut self) -> ParseResult<Stmt<'a>> {
+    fn print_statement(&mut self) -> ParseResult<Stmt> {
         let peek = self
             .advance()?
             .ok_or("print statement with nothing following")?;
         self.expression(peek).map(Stmt::Print)
     }
 
-    fn var_statement(&mut self) -> ParseResult<Stmt<'a>> {
+    fn var_statement(&mut self) -> ParseResult<Stmt> {
         todo!()
     }
 
-    fn expression(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
+    fn expression(&mut self, peek: Token) -> ParseResult<Expr> {
         self.unary(peek)
             .and_then(|expr| self.factor(expr))
             .and_then(|expr| self.term(expr))
@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
             .and_then(|expr| self.logical(expr))
     }
 
-    fn logical(&mut self, mut expr: Expr<'a>) -> Result<Expr<'a>, ParserError> {
+    fn logical(&mut self, mut expr: Expr) -> Result<Expr, ParserError> {
         while let Some(token) = self.peek()? {
             let op = match &token.kind {
                 TokenKind::Operator(Operator::And) => BinOp::And,
@@ -86,7 +86,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn equality(&mut self, mut left: Expr<'a>) -> Result<Expr<'a>, ParserError> {
+    fn equality(&mut self, mut left: Expr) -> Result<Expr, ParserError> {
         while let Some(token) = self.peek()? {
             let op = match &token.kind {
                 TokenKind::Operator(Operator::BangEqual) => BinOp::Ne,
@@ -110,7 +110,7 @@ impl<'a> Parser<'a> {
         Ok(left)
     }
 
-    fn comparison(&mut self, mut expr: Expr<'a>) -> Result<Expr<'a>, ParserError> {
+    fn comparison(&mut self, mut expr: Expr) -> Result<Expr, ParserError> {
         while let Some(token) = self.peek()? {
             use Operator::*;
             let op = match &token.kind {
@@ -133,7 +133,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn term(&mut self, mut expr: Expr<'a>) -> Result<Expr<'a>, ParserError> {
+    fn term(&mut self, mut expr: Expr) -> Result<Expr, ParserError> {
         while let Some(token) = self.peek()? {
             use Operator::*;
             let op = match &token.kind {
@@ -152,7 +152,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn factor(&mut self, mut expr: Expr<'a>) -> Result<Expr<'a>, ParserError> {
+    fn factor(&mut self, mut expr: Expr) -> Result<Expr, ParserError> {
         use Operator::*;
         while let Some(token) = self.peek()? {
             let op = match &token.kind {
@@ -170,7 +170,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn unary(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
+    fn unary(&mut self, peek: Token) -> ParseResult<Expr> {
         let op = match &peek.kind {
             TokenKind::Operator(Operator::Minus) => UnOp::Neg,
             TokenKind::Operator(Operator::Bang) => UnOp::Not,
@@ -181,7 +181,7 @@ impl<'a> Parser<'a> {
         Ok(Expr::from_unary(op, expr))
     }
 
-    fn primary(&mut self, peek: Token<'a>) -> ParseResult<Expr<'a>> {
+    fn primary(&mut self, peek: Token) -> ParseResult<Expr> {
         match peek.kind {
             TokenKind::Literal(lit) => match lit {
                 Literal::True => Ok(Expr::from_bool(true)),
@@ -210,7 +210,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn peek(&mut self) -> Result<Option<&Token<'a>>, LexicalError> {
+    fn peek(&mut self) -> Result<Option<&Token>, LexicalError> {
         self.peeked
             .get_or_insert_with(|| self.tokens.next())
             .as_ref()
@@ -219,7 +219,7 @@ impl<'a> Parser<'a> {
             .map_err(|e| *e)
     }
 
-    fn advance(&mut self) -> Result<Option<Token<'a>>, LexicalError> {
+    fn advance(&mut self) -> Result<Option<Token>, LexicalError> {
         self.peeked
             .take()
             .unwrap_or_else(|| self.tokens.next())

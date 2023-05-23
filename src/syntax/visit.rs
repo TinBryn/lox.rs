@@ -13,7 +13,7 @@ pub trait StmtVisitor<R> {
     fn visit_var(&mut self, name: &str, expr: &Expr) -> R;
 }
 
-impl<'a> Stmt<'a> {
+impl Stmt {
     pub fn accept<R, V: StmtVisitor<R>>(&self, visitor: &mut V) -> R {
         match self {
             Stmt::Expr(expr) => visitor.visit_expr(expr),
@@ -23,7 +23,7 @@ impl<'a> Stmt<'a> {
     }
 }
 
-impl<'a> Expr<'a> {
+impl Expr {
     /// The visitor pattern for this enum, implement the trait
     /// [`Visitor<R>`] and pass it to this method.
     pub fn accept<R, V: ExprVisitor<R>>(&self, visitor: &mut V) -> R {

@@ -112,9 +112,9 @@ impl Display for Keyword {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum TokenKind<'a> {
-    Identifier(&'a str),
-    String(&'a str),
+pub enum TokenKind {
+    Identifier(String),
+    String(String),
     Number(f64),
     Literal(Literal),
     Structure(Structure),
@@ -146,7 +146,7 @@ pub struct TokenMeta {
 }
 
 #[derive(Debug, Clone)]
-pub struct Token<'a> {
-    pub kind: TokenKind<'a>,
+pub struct Token {
+    pub kind: TokenKind,
     pub meta: TokenMeta,
 }
